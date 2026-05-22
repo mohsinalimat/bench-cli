@@ -56,6 +56,20 @@ def init(context: click.Context) -> None:
         sys.exit(1)
 
 
+@cli.command("frappe", context_settings={"ignore_unknown_options": True, "allow_extra_args": True}, add_help_option=False)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+@click.pass_context
+def frappe_cmd(context: click.Context, args: tuple) -> None:
+    """Run a frappe CLI command (proxied to env/bin/bench frappe)."""
+    try:
+        from bench2.commands.frappe_cmd import FrappeCommand
+        bench = _load_bench()
+        FrappeCommand(bench).run(args)
+    except Bench2Error as error:
+        click.echo(str(error), err=True)
+        sys.exit(1)
+
+
 @cli.command()
 @click.pass_context
 def start(context: click.Context) -> None:

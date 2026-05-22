@@ -1,7 +1,21 @@
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from bench2.exceptions import CommandError
+
+
+def uv_bin() -> str:
+    # uv is a bench2 dependency; prefer the one installed alongside bench2
+    # over whatever might (or might not) be in PATH.
+    local = Path(sys.executable).parent / "uv"
+    if local.exists():
+        return str(local)
+    found = shutil.which("uv")
+    if found:
+        return found
+    raise RuntimeError("uv not found. Reinstall bench2: pip install bench2")
 
 
 def run_command(

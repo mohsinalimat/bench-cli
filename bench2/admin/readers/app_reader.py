@@ -85,8 +85,9 @@ class AppReader:
 
     def _pip_version(self, name: str) -> str:
         python_bin = self._bench_root / "env" / "bin" / "python"
+        from bench2.utils import uv_bin
         result = subprocess.run(
-            ["uv", "pip", "show", "--python", str(python_bin), name],
+            [uv_bin(), "pip", "show", "--python", str(python_bin), name],
             capture_output=True,
             text=True,
         )

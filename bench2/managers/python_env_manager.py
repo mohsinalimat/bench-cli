@@ -4,7 +4,7 @@ import shutil
 from typing import TYPE_CHECKING
 
 from bench2.platform import is_macos
-from bench2.utils import run_command
+from bench2.utils import run_command, uv_bin
 
 if TYPE_CHECKING:
     from bench2.core.app import App
@@ -17,13 +17,13 @@ class PythonEnvManager:
 
     def ensure_python(self) -> None:
         version = self.bench.config.python_version
-        run_command(["uv", "python", "install", version])
+        run_command([uv_bin(), "python", "install", version])
 
     def create_venv(self) -> None:
         if self.bench.python.exists():
             return
         version = self.bench.config.python_version
-        run_command(["uv", "venv", str(self.bench.env_path), "--python", version])
+        run_command([uv_bin(), "venv", str(self.bench.env_path), "--python", version])
 
     def generate_bench_script(self) -> None:
         python_path = self.bench.env_path / "bin" / "python"
@@ -39,7 +39,7 @@ class PythonEnvManager:
 
     def install_app(self, app: "App") -> None:
         run_command([
-            "uv", "pip", "install",
+            uv_bin(), "pip", "install",
             "--python", str(self.bench.env_path / "bin" / "python"),
             "-e", str(app.path),
         ], stream_output=True)

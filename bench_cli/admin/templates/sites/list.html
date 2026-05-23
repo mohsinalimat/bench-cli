@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}Sites{% endblock %}
 {% block content %}
 
 <div class="page-header">
@@ -46,6 +47,11 @@
           <label for="site-name">Site name</label>
           <input type="text" id="site-name" placeholder="mysite.localhost" required>
         </div>
+        <div class="form-group">
+          <label for="site-admin-password">Admin password</label>
+          <input type="password" id="site-admin-password" placeholder="admin" value="admin">
+          <p class="form-hint">Password for the Frappe administrator account.</p>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" data-modal-close>Cancel</button>
@@ -67,12 +73,13 @@
     submit.textContent = 'Creating…'
 
     const name = document.getElementById('site-name').value.trim()
+    const admin_password = document.getElementById('site-admin-password').value.trim() || 'admin'
 
     try {
       const res  = await fetch('/sites/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, admin_password }),
       })
       const data = await res.json()
       if (data.ok) {

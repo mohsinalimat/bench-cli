@@ -24,6 +24,7 @@ def index():
 def viewer(filename: str):
     bench_root = current_app.config["BENCH_ROOT"]
     stream_mode = request.args.get("stream") == "1"
+    search = request.args.get("search", "").strip()
 
     try:
         lines_param = int(request.args.get("lines", 200))
@@ -34,6 +35,9 @@ def viewer(filename: str):
     try:
         reader = LogReader(bench_root)
         lines = reader.read_tail(filename, lines_param)
+        if search:
+            search_lower = search.lower()
+            lines = [l for l in lines if search_lower in l.lower()]
     except ValueError as error:
         return render_template("error.html", error=str(error)), 400
     except Exception as error:
@@ -45,6 +49,26 @@ def viewer(filename: str):
         lines=lines,
         lines_count=lines_param,
         stream_mode=stream_mode,
+        search=search,
+    )
+
+
+@logs_bp.route("/<filename>/download")
+def download_log(filename: str):
+    bench_root = current_app.config["BENCH_ROOT"]
+    try:
+        reader = LogReader(bench_root)
+        log_path = reader.file_path(filename)
+    except ValueError as error:
+        return render_template("error.html", error=str(error)), 400
+
+    if not log_path.exists():
+        return render_template("error.html", error=f"Log file not found: {filename}"), 404
+
+    return Response(
+        log_path.read_bytes(),
+        mimetype="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

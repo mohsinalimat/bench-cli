@@ -17,8 +17,11 @@ _WHITELIST: dict[str, list[str]] = {
     "migrate": ["site"],
     "clear-cache": ["site"],
     "install-app": ["site", "app"],
+    "uninstall-app": ["site", "app"],
     "get-app": ["name", "repo"],
     "new-site": ["name"],
+    "drop-site": ["site"],
+    "backup-site": ["site"],
     "build": [],
     "update": [],
     "reload-supervisor": [],
@@ -96,6 +99,8 @@ class TaskRunner:
             return [bench_bin, "--site", args["site"], "clear-cache"]
         if command == "install-app":
             return [bench_bin, "--site", args["site"], "install-app", args["app"]]
+        if command == "uninstall-app":
+            return [bench_bin, "--site", args["site"], "uninstall-app", args["app"], "--yes", "--no-backup"]
         if command == "get-app":
             argv = [sys.executable, "-m", "bench_cli.tasks.get_app_task",
                     str(self._bench_root), args["name"], args["repo"]]
@@ -103,8 +108,16 @@ class TaskRunner:
                 argv += ["--branch", args["branch"]]
             return argv
         if command == "new-site":
-            return [sys.executable, "-m", "bench_cli.tasks.new_site_task",
+            argv = [sys.executable, "-m", "bench_cli.tasks.new_site_task",
                     str(self._bench_root), args["name"]]
+            if args.get("admin_password"):
+                argv += ["--admin-password", args["admin_password"]]
+            return argv
+        if command == "drop-site":
+            return [sys.executable, "-m", "bench_cli.tasks.drop_site_task",
+                    str(self._bench_root), args["site"]]
+        if command == "backup-site":
+            return [bench_bin, "--site", args["site"], "backup"]
         if command == "build":
             return [bench_bin, "build"]
         if command == "update":

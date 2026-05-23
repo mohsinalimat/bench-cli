@@ -50,6 +50,7 @@ def create():
     data = request.get_json(silent=True) or {}
 
     name = (data.get("name") or "").strip()
+    admin_password = (data.get("admin_password") or "admin").strip() or "admin"
     if not name:
         return jsonify({"ok": False, "error": "Site name is required."})
 
@@ -66,7 +67,11 @@ def create():
     apps = cfg.get("apps", [])
     framework_app = apps[0].get("name") if apps else "frappe"
 
-    cfg.setdefault("sites", []).append({"name": name, "apps": [framework_app]})
+    cfg.setdefault("sites", []).append({
+        "name": name,
+        "apps": [framework_app],
+        "admin_password": admin_password,
+    })
 
     try:
         bench_yml.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True, sort_keys=False))
@@ -78,6 +83,26 @@ def create():
     except Exception as e:
         return jsonify({"ok": False, "error": f"Site added to bench.yml but could not start new-site task: {e}"})
 
+    return jsonify({"ok": True, "task_id": task_id})
+
+
+@sites_bp.route("/<name>/drop", methods=["POST"])
+def drop_site(name: str):
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    try:
+        task_id = TaskRunner(bench_root).run("drop-site", {"site": name})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+    return jsonify({"ok": True, "task_id": task_id})
+
+
+@sites_bp.route("/<name>/backup", methods=["POST"])
+def backup_site(name: str):
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    try:
+        task_id = TaskRunner(bench_root).run("backup-site", {"site": name})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
     return jsonify({"ok": True, "task_id": task_id})
 
 

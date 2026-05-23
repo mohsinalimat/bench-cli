@@ -6,6 +6,7 @@ from flask import (
     Blueprint,
     Response,
     current_app,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -23,13 +24,18 @@ tasks_bp = Blueprint("tasks", __name__)
 @tasks_bp.route("/")
 def index():
     bench_root = current_app.config["BENCH_ROOT"]
+    status_filter = request.args.get("status", "")
+
     try:
         task_list = TaskReader(bench_root).list_tasks()
     except Exception as error:
         return render_template("error.html", error=str(error))
 
+    if status_filter and status_filter != "all":
+        task_list = [t for t in task_list if t.status == status_filter]
+
     now = datetime.now(timezone.utc)
-    return render_template("tasks/list.html", tasks=task_list, now=now)
+    return render_template("tasks/list.html", tasks=task_list, now=now, status_filter=status_filter)
 
 
 @tasks_bp.route("/<task_id>")
@@ -91,3 +97,23 @@ def kill_task(task_id: str):
         return render_template("error.html", error=str(error))
 
     return redirect(url_for("tasks.task_detail", task_id=task_id))
+
+
+@tasks_bp.route("/<task_id>/rerun", methods=["POST"])
+def rerun_task(task_id: str):
+    bench_root = current_app.config["BENCH_ROOT"]
+    try:
+        task = TaskReader(bench_root).read_task(task_id)
+    except TaskNotFoundError as error:
+        return render_template("error.html", error=str(error)), 404
+    except Exception as error:
+        return render_template("error.html", error=str(error))
+
+    try:
+        new_task_id = TaskRunner(bench_root).run(task.command, task.args)
+    except ValueError as error:
+        return str(error), 400
+    except Exception as error:
+        return render_template("error.html", error=str(error))
+
+    return redirect(url_for("tasks.task_detail", task_id=new_task_id), code=303)

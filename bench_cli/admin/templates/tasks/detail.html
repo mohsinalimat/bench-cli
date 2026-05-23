@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}{{ task.command }} — Task{% endblock %}
 {% block content %}
 
 <div class="breadcrumb">
@@ -29,8 +30,13 @@
         </span>
         {% if task.status == 'running' %}
         &nbsp;
-        <form action="/tasks/{{ task.task_id }}/kill" method="post" id="kill-form">
-          <button type="submit" class="btn-danger">Kill</button>
+        <form action="/tasks/{{ task.task_id }}/kill" method="post" id="kill-form" style="display:inline">
+          <button type="submit" class="btn-danger" id="kill-btn">Kill</button>
+        </form>
+        {% else %}
+        &nbsp;
+        <form action="/tasks/{{ task.task_id }}/rerun" method="post" id="rerun-form" style="display:inline">
+          <button type="submit" class="btn">Re-run</button>
         </form>
         {% endif %}
       </td>
@@ -56,6 +62,11 @@
   const killForm = document.getElementById('kill-form');
   const es = new EventSource('/tasks/{{ task.task_id }}/stream');
 
+  document.getElementById('kill-btn')?.addEventListener('click', e => {
+    e.preventDefault()
+    Confirm.show('Kill this task?', 'Kill', () => killForm.submit())
+  })
+
   es.onmessage = function(event) {
     pre.textContent += event.data + '\n';
     window.scrollTo(0, document.body.scrollHeight);
@@ -67,7 +78,8 @@
     const newStatus = exitCode === 0 ? 'success' : 'failed';
     statusBadge.className = 'badge status-' + newStatus;
     statusBadge.innerHTML =
-      '<span class="badge-dot status-' + newStatus + '"></span>' + newStatus;
+      '<span class="badge-dot status-' + newStatus + '"></span>' + newStatus
+      + ' &nbsp;<form action="/tasks/{{ task.task_id }}/rerun" method="post" style="display:inline"><button type="submit" class="btn">Re-run</button></form>';
     document.getElementById('exit-code').textContent = exitCode;
     if (killForm) killForm.style.display = 'none';
   });

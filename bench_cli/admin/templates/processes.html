@@ -1,7 +1,14 @@
 {% extends 'base.html' %}
+{% block title %}Processes{% endblock %}
 {% block content %}
 
-<h2>Processes</h2>
+<div class="page-header">
+  <h2>Processes</h2>
+  <span id="refresh-indicator" class="refresh-indicator">
+    Refreshing in <span id="refresh-countdown">15</span>s
+    <button type="button" id="pause-refresh" class="btn-link">Pause</button>
+  </span>
+</div>
 
 <div class="card">
   <table>
@@ -32,5 +39,27 @@
 {% if process_manager == 'supervisor' %}
 <p class="text-muted" style="font-size:12px">Manage via <code>supervisorctl -c config/supervisor.conf</code></p>
 {% endif %}
+
+<script>
+  let paused = false
+  let countdown = 15
+  const countdownEl = document.getElementById('refresh-countdown')
+  const pauseBtn = document.getElementById('pause-refresh')
+
+  pauseBtn.addEventListener('click', () => {
+    paused = !paused
+    pauseBtn.textContent = paused ? 'Resume' : 'Pause'
+  })
+
+  const tick = setInterval(() => {
+    if (paused) return
+    countdown--
+    countdownEl.textContent = countdown
+    if (countdown <= 0) {
+      clearInterval(tick)
+      window.location.reload()
+    }
+  }, 1000)
+</script>
 
 {% endblock %}

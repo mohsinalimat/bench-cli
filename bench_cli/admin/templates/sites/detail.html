@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}{{ site.name }} — Sites{% endblock %}
 {% block content %}
 
 <div class="breadcrumb">
@@ -13,9 +14,9 @@
     <tr><th>Name</th><td>{{ site.name }}</td></tr>
     <tr><th>Status</th><td>
       {% if site.exists %}
-        <span class="badge status-running">exists</span>
+        <span class="badge badge-success">exists</span>
       {% else %}
-        <span class="badge status-unknown">not created</span>
+        <span class="badge badge-neutral">not created</span>
       {% endif %}
     </td></tr>
     <tr><th>Database</th><td class="mono">{{ site.db_name or '—' }} @ {{ site.db_host or 'localhost' }}</td></tr>
@@ -24,17 +25,27 @@
 
 <div class="card">
   <div class="card-header"><h3>Installed apps</h3></div>
-  <div class="card-body">
-    {% if site.installed_apps %}
-      <ul style="display:flex;flex-direction:column;gap:6px">
-        {% for app in site.installed_apps %}
-        <li>{{ app }}</li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <span class="text-muted">None</span>
-    {% endif %}
-  </div>
+  {% if site.installed_apps %}
+  <table>
+    <thead>
+      <tr><th>App</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for app in site.installed_apps %}
+      <tr>
+        <td>{{ app }}</td>
+        <td style="text-align:right">
+          {% if app != site.installed_apps[0] %}
+          <button class="btn-danger btn-sm" onclick="doUninstall('{{ site.name }}', '{{ app }}', this)">Uninstall</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body"><span class="text-muted">None</span></div>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -50,9 +61,10 @@
       <input type="hidden" name="site" value="{{ site.name }}">
       <button type="submit">Clear cache</button>
     </form>
+    <button type="button" onclick="doBackup('{{ site.name }}', this)">Backup</button>
   </div>
   <div class="card-body" style="border-top:1px solid var(--gray-100)">
-    <form action="/tasks/run" method="post" class="form-row">
+    <form id="install-app-form" action="/tasks/run" method="post" class="form-row">
       <input type="hidden" name="command" value="install-app">
       <input type="hidden" name="site" value="{{ site.name }}">
       <label>Install app</label>
@@ -76,5 +88,78 @@
     <pre style="border-radius:0;margin:0">{{ site_config_json }}</pre>
   </div>
 </div>
+
+{% if site.exists %}
+<div class="card danger-zone">
+  <div class="card-header"><h3>Danger zone</h3></div>
+  <div class="card-body">
+    <div class="danger-row">
+      <div>
+        <strong>Drop site</strong>
+        <p class="text-muted" style="margin:2px 0 0;font-size:13px">Permanently deletes the site database and files. This cannot be undone.</p>
+      </div>
+      <button class="btn-danger" id="drop-site-btn">Drop site</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  async function doAction(url, label, btn) {
+    const orig = btn.textContent
+    btn.disabled = true
+    btn.textContent = label + '…'
+    try {
+      const res = await fetch(url, { method: 'POST' })
+      const data = await res.json()
+      if (data.ok) {
+        window.location.href = '/tasks/' + data.task_id
+      } else {
+        Toast.show(data.error, 'error')
+      }
+    } catch {
+      Toast.show('Request failed.', 'error')
+    } finally {
+      btn.disabled = false
+      btn.textContent = orig
+    }
+  }
+
+  function doBackup(site, btn) {
+    doAction('/sites/' + site + '/backup', 'Backing up', btn)
+  }
+
+  function doUninstall(site, app, btn) {
+    Confirm.show(
+      'Uninstall ' + app + ' from ' + site + '? This runs bench uninstall-app.',
+      'Uninstall',
+      () => {
+        const form = document.createElement('form')
+        form.method = 'POST'
+        form.action = '/tasks/run'
+        const fields = { command: 'uninstall-app', site, app }
+        Object.entries(fields).forEach(([k, v]) => {
+          const input = document.createElement('input')
+          input.type = 'hidden'
+          input.name = k
+          input.value = v
+          form.appendChild(input)
+        })
+        document.body.appendChild(form)
+        form.submit()
+      }
+    )
+  }
+
+  {% if site.exists %}
+  document.getElementById('drop-site-btn').addEventListener('click', () => {
+    Confirm.show(
+      'Drop {{ site.name }}? This permanently deletes the database and site files.',
+      'Drop site',
+      () => doAction('/sites/{{ site.name }}/drop', 'Dropping', document.getElementById('drop-site-btn'))
+    )
+  })
+  {% endif %}
+</script>
 
 {% endblock %}

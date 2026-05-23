@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}{{ filename }} — Logs{% endblock %}
 {% block content %}
 
 <div class="breadcrumb">
@@ -10,19 +11,30 @@
   {% endif %}
 </div>
 
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+<div class="log-toolbar">
   {% if stream_mode %}
     <a href="/logs/{{ filename }}" class="btn" style="text-decoration:none">Stop live tail</a>
   {% else %}
+    <form method="get" action="/logs/{{ filename }}" class="log-search-form">
+      <input type="text" name="search" value="{{ search }}" placeholder="Search…" class="log-search-input">
+      <input type="hidden" name="lines" value="{{ lines_count }}">
+      <button type="submit">Search</button>
+      {% if search %}<a href="/logs/{{ filename }}?lines={{ lines_count }}" class="btn">Clear</a>{% endif %}
+    </form>
     <label style="font-size:13px;color:var(--gray-600)">Lines:</label>
-    <select onchange="window.location='/logs/{{ filename }}?lines='+this.value">
+    <select onchange="window.location='/logs/{{ filename }}?lines='+this.value+'{% if search %}&search={{ search|urlencode }}{% endif %}'">
       {% for n in [200, 500, 1000, 5000] %}
       <option value="{{ n }}" {% if n == lines_count %}selected{% endif %}>{{ n }}</option>
       {% endfor %}
     </select>
     <a href="/logs/{{ filename }}?stream=1" class="btn" style="text-decoration:none">Live tail ↺</a>
+    <a href="/logs/{{ filename }}/download" class="btn" style="text-decoration:none">Download</a>
   {% endif %}
 </div>
+
+{% if search %}
+<p class="text-muted" style="font-size:13px;margin-bottom:8px">{{ lines | length }} line{{ 's' if lines | length != 1 else '' }} matching "{{ search }}"</p>
+{% endif %}
 
 <pre id="output">{% if not stream_mode %}{% for line in lines %}{{ line }}
 {% endfor %}{% endif %}</pre>

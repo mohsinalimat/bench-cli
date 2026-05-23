@@ -12,6 +12,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("bench_root")
     parser.add_argument("site_name")
+    parser.add_argument("--admin-password", default=None)
     args = parser.parse_args()
 
     bench_root = Path(args.bench_root)
@@ -28,6 +29,9 @@ def main() -> None:
     except StopIteration:
         print(f"Error: site '{args.site_name}' not found in bench.yml", file=sys.stderr)
         sys.exit(1)
+
+    if args.admin_password:
+        site_cfg.admin_password = args.admin_password
 
     site = Site(site_cfg, bench)
 

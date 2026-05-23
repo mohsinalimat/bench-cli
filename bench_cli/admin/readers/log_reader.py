@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Generator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[mKJHfABCDGsu]")
 
 
 @dataclass
@@ -43,7 +46,10 @@ class LogReader:
         if not log_path.exists():
             raise FileNotFoundError(f"Log file not found: {filename}")
         all_lines = log_path.read_text(errors="replace").splitlines()
-        return all_lines[-lines:]
+        return [_ANSI_RE.sub("", l) for l in all_lines[-lines:]]
+
+    def file_path(self, filename: str) -> Path:
+        return self._validated_path(filename)
 
     def stream_tail(self, filename: str) -> Generator[str, None, None]:
         log_path = self._validated_path(filename)
@@ -55,7 +61,7 @@ class LogReader:
             while yielded < _MAX_STREAM_LINES:
                 line = file_handle.readline()
                 if line:
-                    yield line.rstrip("\n")
+                    yield _ANSI_RE.sub("", line.rstrip("\n"))
                     yielded += 1
                 else:
                     time.sleep(0.2)

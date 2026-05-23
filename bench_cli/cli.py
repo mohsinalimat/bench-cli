@@ -227,6 +227,17 @@ def update(context: click.Context) -> None:
         sys.exit(1)
 
 
+@cli.command("update-bench")
+def update_bench() -> None:
+    """Pull the latest bench-cli source and reinstall the tool."""
+    try:
+        from bench_cli.commands.update_bench import UpdateBenchCliCommand
+        UpdateBenchCliCommand().run()
+    except BenchError as error:
+        click.echo(str(error), err=True)
+        sys.exit(1)
+
+
 @cli.command()
 @click.option("--port", default=8001, type=int, help="Port for the admin interface.")
 @click.option("--host", default="127.0.0.1", help="Host for the admin interface.")

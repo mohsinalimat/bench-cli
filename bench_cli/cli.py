@@ -202,6 +202,17 @@ def stop_admin(context: click.Context) -> None:
         sys.exit(1)
 
 
+@cli.command("rebuild-admin")
+def rebuild_admin() -> None:
+    """Rebuild the admin UI frontend assets (npm run build)."""
+    try:
+        from bench_cli.commands.rebuild_admin import RebuildAdminCommand
+        RebuildAdminCommand().run()
+    except BenchError as error:
+        click.echo(str(error), err=True)
+        sys.exit(1)
+
+
 @cli.command()
 @click.pass_context
 def build(context: click.Context) -> None:
@@ -256,7 +267,7 @@ def update_bench() -> None:
 @click.pass_context
 def admin(context: click.Context, port: int, host: str) -> None:
     """Start the admin web interface."""
-    from bench_cli.admin.app import create_app
+    from admin.backend.app import create_app
     bench_root = find_bench_root()
     app = create_app(bench_root)
     app.run(host=host, port=port, threaded=True, debug=True)

@@ -57,7 +57,7 @@ class ProcessManager(ABC):
         port = self.bench.config.admin.port
         bench_root = self.bench.path
         command = (
-            f"{sys.executable} -m bench_cli.admin.server"
+            f"{sys.executable} -m admin.backend.server"
             f" --bench-root {bench_root}"
             f" --port {port}"
             f" --no-timeout"

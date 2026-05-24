@@ -53,7 +53,7 @@ class StartAdminCommand:
             [
                 sys.executable,
                 "-m",
-                "bench_cli.admin.server",
+                "admin.backend.server",
                 "--bench-root",
                 str(self.bench.path),
                 "--port",

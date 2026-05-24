@@ -1,0 +1,91 @@
+<script setup>
+import { h, ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Badge, ListView, Button, LoadingText, ErrorMessage } from 'frappe-ui'
+
+const processes = ref([])
+const processManager = ref('')
+const loading = ref(true)
+const error = ref('')
+const paused = ref(false)
+const countdownDisplay = ref(15)
+let countdown = 15
+let timer
+
+const router = useRouter()
+const STATUS_COLOR = { running: 'green', stopped: 'red', error: 'red', unknown: 'gray' }
+
+const columns = [
+  { label: 'Name', key: 'name', width: '200px' },
+  {
+    label: 'Status', key: 'status', width: '100px',
+    prefix: ({ row }) => h(Badge, { label: row.status, color: STATUS_COLOR[row.status] || 'gray' }),
+    getLabel: () => '',
+  },
+  { label: 'PID', key: 'pid', width: '80px' },
+  { label: 'Uptime', key: 'uptime', width: '100px' },
+  {
+    label: 'Log', key: 'log_filename',
+    prefix: ({ row }) => row.log_filename ? h('a', {
+      class: 'truncate text-ink-blue-2 hover:underline',
+      href: `/logs/${row.log_filename}`,
+      onClick: (e) => { e.preventDefault(); router.push(`/logs/${row.log_filename}`) },
+    }, row.log_filename) : null,
+    getLabel: () => '',
+  },
+]
+
+const rows = computed(() => processes.value)
+
+async function load() {
+  try {
+    const res = await fetch('/api/processes/')
+    if (!res.ok) throw new Error(`${res.status}`)
+    const d = await res.json()
+    processes.value = d.processes
+    processManager.value = d.process_manager
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  load()
+  timer = setInterval(() => {
+    if (paused.value) return
+    countdown--
+    countdownDisplay.value = countdown
+    if (countdown <= 0) { countdown = 15; countdownDisplay.value = 15; load() }
+  }, 1000)
+})
+onUnmounted(() => clearInterval(timer))
+</script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <h3>Processes</h3>
+      <div class="flex items-center gap-2">
+        <span v-if="!paused">Refreshing in {{ countdownDisplay }}s</span>
+        <Button variant="ghost" size="sm" @click="paused = !paused">{{ paused ? 'Resume' : 'Pause' }}</Button>
+      </div>
+    </div>
+
+    <LoadingText v-if="loading" />
+    <ErrorMessage v-else-if="error" :message="error" />
+
+    <div v-else>
+      <ListView
+        :columns="columns"
+        :rows="rows"
+        row-key="name"
+        :options="{ selectable: false, showTooltip: false }"
+      />
+      <p v-if="processManager === 'supervisor'" class="mt-3">
+        Manage via <code>supervisorctl -c config/supervisor.conf</code>
+      </p>
+    </div>
+  </div>
+</template>

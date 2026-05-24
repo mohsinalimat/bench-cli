@@ -18,9 +18,7 @@ bench = "bench_cli.cli:main"
 where = ["."]
 
 [tool.setuptools.package-data]
-bench_cli = [
-  "admin/templates/**/*.html",
-  "admin/templates/*.html",
-  "admin/static/*.css",
-  "admin/static/fonts/*.woff2",
+"admin.backend" = [
+  "static/dist/**/*",
+  "static/dist/index.html",
 ]

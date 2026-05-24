@@ -31,3 +31,7 @@ htmlcov/
 .idea/
 *.swp
 *~
+
+# Admin
+admin/frontend/node_modules/
+admin/backend/static/dist/

@@ -27,7 +27,6 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y mariadb-server redis-server git
           sudo systemctl start mariadb redis-server
-          # Switch root from unix_socket to password auth so frappe new-site can connect
           sudo mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('admin'); FLUSH PRIVILEGES;"
 
       - name: Install yarn and bench
@@ -35,57 +34,53 @@ jobs:
           npm install -g yarn
           pip install -e ".[test]"
 
-      - name: Create bench directory
+      - name: Create bench
         run: |
-          mkdir -p /tmp/ci-bench
-          cp tests/fixtures/ci_bench.toml /tmp/ci-bench/bench.toml
+          mkdir -p benches/ci-bench
+          cp tests/fixtures/ci_bench.toml benches/ci-bench/bench.toml
 
       - name: bench init
         run: bench init
-        working-directory: /tmp/ci-bench
         timeout-minutes: 45
 
       - name: Create sites
         run: |
           bench new-site site1.localhost --admin-password admin
           bench new-site site2.localhost --admin-password admin
-        working-directory: /tmp/ci-bench
 
       - name: Verify sites exist
         run: |
-          test -f /tmp/ci-bench/sites/site1.localhost/site_config.json
-          test -f /tmp/ci-bench/sites/site2.localhost/site_config.json
+          test -f benches/ci-bench/sites/site1.localhost/site_config.json
+          test -f benches/ci-bench/sites/site2.localhost/site_config.json
 
       - name: Start Redis services
         run: |
-          redis-server /tmp/ci-bench/config/redis_cache.conf &
-          redis-server /tmp/ci-bench/config/redis_queue.conf &
-          redis-server /tmp/ci-bench/config/redis_socketio.conf &
+          redis-server benches/ci-bench/config/redis_cache.conf --daemonize yes
+          redis-server benches/ci-bench/config/redis_queue.conf --daemonize yes
+          redis-server benches/ci-bench/config/redis_socketio.conf --daemonize yes
           sleep 2
 
       - name: Migrate both sites
         run: |
-          BENCH=/tmp/ci-bench/env/bin/bench
-          cd /tmp/ci-bench/sites
+          BENCH=benches/ci-bench/env/bin/bench
+          cd benches/ci-bench/sites
           $BENCH frappe --site site1.localhost migrate
           $BENCH frappe --site site2.localhost migrate
 
       - name: Clear cache on both sites
         run: |
-          BENCH=/tmp/ci-bench/env/bin/bench
-          cd /tmp/ci-bench/sites
+          BENCH=benches/ci-bench/env/bin/bench
+          cd benches/ci-bench/sites
           $BENCH frappe --site site1.localhost clear-cache
           $BENCH frappe --site site2.localhost clear-cache
 
       - name: bench update
-        run: bench update
-        working-directory: /tmp/ci-bench
+        run: bench update --yes
 
       - name: bench build
         run: bench build
-        working-directory: /tmp/ci-bench
 
       - name: Run integration tests
         run: pytest tests/integration/ -v
         env:
-          BENCH_TEST_ROOT: /tmp/ci-bench
+          BENCH_TEST_ROOT: ${{ github.workspace }}/benches/ci-bench

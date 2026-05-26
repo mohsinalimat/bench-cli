@@ -9,8 +9,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from admin.backend.tasks.jobs.build_assets import build_app_assets
-
 
 class InstallAppJob:
     def __init__(self, bench_root: Path, site: str, app: str) -> None:
@@ -35,7 +33,18 @@ class InstallAppJob:
             sys.exit(result.returncode)
 
     def _build_assets(self) -> None:
-        build_app_assets(self.bench_root, self.app)
+        app_dir = self.bench_root / "apps" / self.app
+        if (app_dir / "package.json").exists():
+            print(f"\nInstalling JS dependencies for {self.app}...")
+            sys.stdout.flush()
+            subprocess.run(["yarn", "install"], cwd=str(app_dir), check=False)
+
+        print(f"\nBuilding assets...")
+        sys.stdout.flush()
+        subprocess.run(
+            [self.bench_bin, "frappe", "build", "--force"],
+            cwd=str(self.sites_dir),
+        )
 
 
 def main() -> None:

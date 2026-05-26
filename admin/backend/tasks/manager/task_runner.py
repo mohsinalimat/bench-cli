@@ -103,7 +103,7 @@ class TaskRunner:
             return [bench_bin, "frappe", "--site", args["site"], "uninstall-app", args["app"], "--yes", "--no-backup"]
         if command == "get-app":
             argv = [sys.executable, "-m", "admin.backend.tasks.jobs.get_app_task",
-                    str(self._bench_root), args["name"], args["repo"]]
+                    str(self._bench_root), args["repo"]]
             if args.get("branch"):
                 argv += ["--branch", args["branch"]]
             return argv

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Badge, Dialog, FormControl, LoadingText, ErrorMessage, TabButtons } from 'frappe-ui'
 import LucideDatabase from '~icons/lucide/database'
@@ -11,8 +11,11 @@ const siteName = route.params.name
 
 const site = ref(null)
 const installable = ref([])
+const registry = ref([])
 const loading = ref(true)
 const error = ref('')
+
+const logoMap = computed(() => Object.fromEntries(registry.value.map(a => [a.name, a.logo_url])))
 
 const actionLoading = ref('')
 const actionError = ref('')
@@ -52,6 +55,13 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadRegistry() {
+  try {
+    const res = await fetch('/api/apps/registry')
+    registry.value = await res.json()
+  } catch { registry.value = [] }
 }
 
 async function doAction(path, body = {}) {
@@ -98,7 +108,7 @@ function confirmUninstall(app) {
   showUninstall.value = true
 }
 
-onMounted(load)
+onMounted(() => { load(); loadRegistry() })
 </script>
 
 <template>
@@ -157,10 +167,11 @@ onMounted(load)
             >
               <div class="flex items-center gap-3">
                 <div
-                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
-                  :style="{ background: hashColor(app) }"
+                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md overflow-hidden"
+                  :style="logoMap[app] ? {} : { background: hashColor(app) }"
                 >
-                  <span class="text-sm font-bold text-white">{{ app[0].toUpperCase() }}</span>
+                  <img v-if="logoMap[app]" :src="logoMap[app]" :alt="app" class="h-full w-full object-contain" />
+                  <span v-else class="text-sm font-bold text-white">{{ app[0].toUpperCase() }}</span>
                 </div>
                 <span class="text-sm font-medium text-ink-gray-8">{{ app }}</span>
               </div>
@@ -201,16 +212,18 @@ onMounted(load)
     <!-- Install App dialog -->
     <Dialog v-model="showInstall" :options="{ title: 'Install App' }">
       <template #body-content>
-        <FormControl
-          label="App to install"
-          type="select"
-          v-model="selectedInstallApp"
-          :options="[{ label: 'Select an app…', value: '' }, ...installable.map(a => ({ label: a, value: a }))]"
-        />
-        <ErrorMessage :message="installError" class="mt-2" />
-        <div class="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" @click="showInstall = false">Cancel</Button>
-          <Button variant="solid" :loading="installLoading" :disabled="!selectedInstallApp" @click="installApp">Install</Button>
+        <div @pointerdown.stop>
+          <FormControl
+            label="App to install"
+            type="select"
+            v-model="selectedInstallApp"
+            :options="[{ label: 'Select an app…', value: '' }, ...installable.map(a => ({ label: a, value: a }))]"
+          />
+          <ErrorMessage :message="installError" class="mt-2" />
+          <div class="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" @click="showInstall = false">Cancel</Button>
+            <Button variant="solid" :loading="installLoading" :disabled="!selectedInstallApp" @click="installApp">Install</Button>
+          </div>
         </div>
       </template>
     </Dialog>

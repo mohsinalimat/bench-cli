@@ -20,7 +20,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api': {
+        target: `http://localhost:${process.env.VITE_ADMIN_PORT || 8002}`,
+        changeOrigin: true,
+      },
     },
   },
   resolve: {
@@ -29,6 +32,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['frappe-ui', 'vue', 'vue-router'],
+    exclude: ['frappe-ui'],
   },
 })

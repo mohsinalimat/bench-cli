@@ -45,13 +45,27 @@ const filteredRegistry = computed(() => {
   )
 })
 
-const columns = [
-  { label: 'Name', key: 'name', width: '150px' },
+const logoMap = computed(() => Object.fromEntries(registry.value.map(a => [a.name, a.logo_url])))
+
+const columns = computed(() => [
+  {
+    label: 'App', key: 'name', width: '180px',
+    prefix: ({ row }) => {
+      const logo = logoMap.value[row.name]
+      return h('div', {
+        class: 'flex h-6 w-6 shrink-0 items-center justify-center rounded overflow-hidden mr-1',
+        style: logo ? {} : { background: hashColor(row.name) },
+      }, logo
+        ? [h('img', { src: logo, alt: row.name, class: 'h-full w-full object-contain' })]
+        : [h('span', { class: 'text-xs font-bold text-white' }, row.name[0].toUpperCase())]
+      )
+    },
+  },
   { label: 'Repo', key: 'repo' },
   {
     label: 'Branch',
     key: '_branch',
-    width: '220px',
+    width: '200px',
     prefix: ({ row }) => h('div', { class: 'flex items-center gap-1 flex-wrap py-1' },
       row._branchChips.map(b =>
         h(Badge, {
@@ -65,14 +79,13 @@ const columns = [
     ),
     getLabel: () => '',
   },
-  { label: 'Commit', key: '_commit', width: '180px' },
   {
-    label: 'Status', key: '_status', width: '100px',
+    label: 'Status', key: '_status', width: '90px',
     prefix: ({ row }) => h(Badge, { label: row._status, theme: row._status === 'dirty' ? 'orange' : 'gray' }),
     getLabel: () => '',
   },
-  { label: 'Version', key: 'installed_version', width: '100px' },
-]
+  { label: 'Version', key: 'installed_version', width: '90px' },
+])
 
 const rows = computed(() =>
   apps.value.map(a => ({
@@ -237,7 +250,7 @@ function hashColor(name) {
   return COLORS[Math.abs(h) % COLORS.length]
 }
 
-onMounted(load)
+onMounted(() => { load(); loadRegistry() })
 </script>
 
 <template>
@@ -249,7 +262,7 @@ onMounted(load)
     <LoadingText v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
 
-    <div v-else>
+    <div v-else class="overflow-hidden">
       <ListView
         :columns="columns"
         :rows="rows"
@@ -276,9 +289,10 @@ onMounted(load)
               :class="{ 'bg-surface-blue-1': selectedApp?.name === a.name }"
               @click="selectRegistryApp(a)"
             >
-              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded font-bold text-white"
-                   :style="{ background: hashColor(a.name) }">
-                {{ (a.title || a.name)[0].toUpperCase() }}
+              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded overflow-hidden"
+                   :style="a.logo_url ? {} : { background: hashColor(a.name) }">
+                <img v-if="a.logo_url" :src="a.logo_url" :alt="a.title || a.name" class="h-full w-full object-contain" />
+                <span v-else class="font-bold text-white">{{ (a.title || a.name)[0].toUpperCase() }}</span>
               </div>
               <div class="text-left flex-1 min-w-0">
                 <div class="font-medium text-sm">{{ a.title || a.name }}</div>

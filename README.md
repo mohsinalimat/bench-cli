@@ -7,12 +7,11 @@ A zero-dependency CLI for managing [Frappe](https://frappeframework.com) environ
 | | Legacy | bench-cli |
 |---|---|---|
 | Dependencies | ~20 Python packages | Zero — stdlib only |
-| Config | Scattered JSON files | Single `bench.toml` |
+| Config | None | Single `bench.toml` |
 | Folder layout | Wherever you `bench init` | All benches under `bench-cli/benches/` |
 | Process manager | Honcho / Supervisor | Built-in Procfile runner |
 | Python env | pip + virtualenv | [uv](https://github.com/astral-sh/uv) (auto-installed) |
 | Admin UI | None | Built-in — app status, sites, logs, task runner |
-| Site/app tracking | Config files | Filesystem — `apps/` and `sites/` are source of truth |
 
 ## Requirements
 
@@ -85,7 +84,7 @@ Apps and sites are tracked by the filesystem — no need to list them in `bench.
 | `bench new-site <name>` | Create a site |
 | `bench build` | Rebuild JS/CSS assets |
 | `bench update` | git pull + reinstall + migrate all sites |
-| `bench update-config` | Regenerate Procfile and config files from bench.toml |
+| `bench setup config` | Regenerate Procfile and config files from bench.toml |
 | `bench build-admin` | Rebuild admin frontend assets |
 | `bench setup nginx` | Generate and install nginx config |
 | `bench setup letsencrypt` | Obtain SSL certificates |

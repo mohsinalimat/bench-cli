@@ -346,7 +346,7 @@ If migration fails on one site, print the error and continue with remaining site
 
 ---
 
-## `bench update-config`
+## `bench setup config`
 
 Regenerates all derived config files from `bench.toml` without running a full `bench init`. Use this after editing `bench.toml` to update ports, worker counts, or Redis settings.
 

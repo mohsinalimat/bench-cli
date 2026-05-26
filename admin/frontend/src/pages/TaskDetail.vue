@@ -8,7 +8,7 @@ const router = useRouter()
 const taskId = route.params.id
 
 const task = ref(null)
-const output = ref([])
+const lines = ref([])
 const loading = ref(true)
 const error = ref('')
 const streaming = ref(false)
@@ -19,6 +19,59 @@ let es = null
 const outputEl = ref(null)
 
 const TASK_COLOR = { success: 'green', failed: 'red', running: 'blue', killed: 'gray' }
+
+// Catppuccin Mocha palette for ANSI colors
+const ANSI_FG = {
+  '30': '#45475a', '31': '#f38ba8', '32': '#a6e3a1', '33': '#f9e2af',
+  '34': '#89b4fa', '35': '#cba6f7', '36': '#89dceb', '37': '#cdd6f4',
+  '90': '#585b70', '91': '#f38ba8', '92': '#a6e3a1', '93': '#f9e2af',
+  '94': '#89b4fa', '95': '#cba6f7', '96': '#89dceb', '97': '#ffffff',
+}
+
+// Convert a plain text line (already \r-resolved) to safe HTML with ANSI colors.
+function ansiToHtml(text) {
+  let html = ''
+  let openSpans = 0
+  const parts = text.split(/(\x1b\[[0-9;]*[A-Za-z])/)
+  for (const part of parts) {
+    if (part.startsWith('\x1b[')) {
+      const letter = part[part.length - 1]
+      if (letter === 'm') {
+        const codes = part.slice(2, -1).split(';')
+        for (const code of codes) {
+          if (code === '0' || code === '') {
+            html += '</span>'.repeat(openSpans)
+            openSpans = 0
+          } else if (code === '1') {
+            html += '<span style="font-weight:bold">'
+            openSpans++
+          } else if (ANSI_FG[code]) {
+            html += `<span style="color:${ANSI_FG[code]}">`
+            openSpans++
+          }
+        }
+      }
+      // non-SGR codes (cursor movement etc.) are silently dropped
+    } else {
+      html += part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }
+  }
+  return html + '</span>'.repeat(openSpans)
+}
+
+// Apply \r (carriage return) semantics: take the last non-empty segment after splitting on \r.
+// This handles progress bars that overwrite the current line.
+function applyCarriageReturns(raw) {
+  const parts = raw.split('\r')
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (parts[i]) return parts[i]
+  }
+  return ''
+}
+
+function processRaw(raw) {
+  return ansiToHtml(applyCarriageReturns(raw))
+}
 
 function fmtDate(iso) {
   if (!iso) return '—'
@@ -44,7 +97,7 @@ async function load() {
     if (!res.ok) throw new Error(`${res.status}`)
     const d = await res.json()
     task.value = d.task
-    output.value = d.output
+    lines.value = d.output.map(processRaw)
   } catch (e) {
     error.value = e.message
   } finally {
@@ -56,7 +109,7 @@ function startStream() {
   streaming.value = true
   es = new EventSource(`/api/tasks/${taskId}/stream`)
   es.onmessage = (e) => {
-    output.value.push(e.data)
+    lines.value.push(processRaw(e.data))
     scrollBottom()
   }
   es.addEventListener('done', () => {
@@ -131,12 +184,21 @@ onUnmounted(() => { if (es) { es.close(); es = null } })
           :loading="actionLoading === 'rerun'" @click="rerunTask">Re-run</Button>
       </div>
 
-      <div ref="outputEl" class="overflow-auto font-mono" style="max-height: 65vh; min-height: 200px;">
-        <div v-if="!output.length">No output yet…</div>
-        <div v-else>
-          <div v-for="(line, i) in output" :key="i" class="whitespace-pre-wrap break-all">{{ line }}</div>
-          <div v-if="streaming" class="animate-pulse">█</div>
-        </div>
+      <div
+        ref="outputEl"
+        class="overflow-auto rounded-lg font-mono text-sm leading-5"
+        style="background:#1e1e2e; color:#cdd6f4; padding:1rem; max-height:65vh; min-height:200px;"
+      >
+        <div v-if="!lines.length" style="color:#585b70;">No output yet…</div>
+        <template v-else>
+          <div
+            v-for="(line, i) in lines"
+            :key="i"
+            class="whitespace-pre"
+            v-html="line || '&nbsp;'"
+          />
+          <span v-if="streaming" style="color:#a6e3a1;" class="animate-pulse">█</span>
+        </template>
       </div>
     </template>
 

@@ -49,7 +49,10 @@ class TaskReader:
         output_path = self._bench_root / "tasks" / task_id / "output.log"
         if not output_path.exists():
             return []
-        all_lines = output_path.read_text(errors="replace").splitlines()
+        text = output_path.read_text(errors="replace")
+        all_lines = text.split("\n")
+        while all_lines and not all_lines[-1]:
+            all_lines.pop()
         return all_lines[-lines:]
 
     def stream_output(self, task_id: str) -> Generator[str, None, None]:

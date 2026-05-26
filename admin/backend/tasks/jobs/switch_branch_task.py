@@ -15,7 +15,6 @@ from bench_cli.core.bench import Bench
 from bench_cli.managers.python_env_manager import PythonEnvManager
 from bench_cli.utils import write_toml
 
-from admin.backend.tasks.jobs.build_assets import build_app_assets
 
 
 class SwitchBranchJob:
@@ -37,7 +36,7 @@ class SwitchBranchJob:
         self._checkout(stashed)
         self._reinstall()
         self._update_bench_toml()
-        build_app_assets(self.bench.path, self.app_name)
+        self._build_assets()
         print(f"\n'{self.app_name}' switched to '{self.branch}' successfully.")
 
     def _prepare_repo(self) -> bool:
@@ -73,6 +72,22 @@ class SwitchBranchJob:
         sys.stdout.flush()
         subprocess.run(
             [self.uv, "pip", "install", "--python", self.python_bin, "-e", str(self.app_path)],
+            check=False,
+        )
+
+    def _build_assets(self) -> None:
+        app_dir = self.bench.path / "apps" / self.app_name
+        if (app_dir / "package.json").exists():
+            print(f"\nInstalling JS dependencies for {self.app_name}...")
+            sys.stdout.flush()
+            subprocess.run(["yarn", "install"], cwd=str(app_dir), check=False)
+
+        print(f"\nBuilding assets...")
+        sys.stdout.flush()
+        bench_bin = str(self.bench.path / "env" / "bin" / "bench")
+        subprocess.run(
+            [bench_bin, "frappe", "build", "--force"],
+            cwd=str(self.bench.sites_path),
             check=False,
         )
 

@@ -173,6 +173,7 @@ class ProcessManager:
             definitions.append(self._redis_definition("redis_cache", "redis_cache.conf"))
             definitions.append(self._redis_definition("redis_queue", "redis_queue.conf"))
             definitions.append(self._redis_definition("redis_socketio", "redis_socketio.conf"))
+        definitions.append(self._admin_frontend_dev_definition())
         return definitions
 
     def _web_definition(self) -> ProcessDefinition:
@@ -221,10 +222,21 @@ class ProcessManager:
             f" --port {cfg.port}"
             f" --timeout {cfg.timeout}"
         )
+        command += " --dev"
         return ProcessDefinition(
             name="admin",
             command=command,
             log_file=self.bench.logs_path / "admin.log",
+        )
+
+    def _admin_frontend_dev_definition(self) -> ProcessDefinition:
+        cli_root = _cli_root()
+        frontend_dir = cli_root / "admin" / "frontend"
+        cfg = self.bench.config.admin
+        return ProcessDefinition(
+            name="admin-ui",
+            command=f"VITE_ADMIN_PORT={cfg.port} npm run dev --prefix {frontend_dir}",
+            log_file=self.bench.logs_path / "admin-ui.log",
         )
 
 

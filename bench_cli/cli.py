@@ -6,7 +6,7 @@ from bench_cli.exceptions import BenchError
 
 _OWN_COMMANDS = frozenset([
     "new", "init", "start", "stop", "get-app", "new-site",
-    "frappe", "build", "update", "update-config", "build-admin", "setup",
+    "frappe", "build", "update", "build-admin", "setup",
 ])
 _OWN_GROUP_OPTIONS = frozenset(["--verbose", "--yes", "-y", "--bench", "-b", "--help", "-h"])
 
@@ -132,7 +132,6 @@ def _make_parser() -> argparse.ArgumentParser:
     sub.add_parser("stop", help="Stop the running bench.")
     sub.add_parser("build", help="Rebuild assets.")
     sub.add_parser("update", help="Pull latest code and migrate sites.")
-    sub.add_parser("update-config", help="Regenerate config files from bench.toml.")
     p_get = sub.add_parser("get-app", help="Clone and install an app.")
     p_get.add_argument("repo", help="Git repository URL.")
     p_get.add_argument("--branch", default="", help="Git branch to checkout.")
@@ -149,9 +148,10 @@ def _make_parser() -> argparse.ArgumentParser:
 
     p_setup = sub.add_parser("setup", help="Production setup commands.")
     setup_sub = p_setup.add_subparsers(dest="setup_command")
-    setup_sub.add_parser("nginx")
-    setup_sub.add_parser("letsencrypt")
-    setup_sub.add_parser("production")
+    setup_sub.add_parser("config", help="Regenerate config files from bench.toml.")
+    setup_sub.add_parser("nginx", help="Generate nginx config.")
+    setup_sub.add_parser("letsencrypt", help="Setup Let's Encrypt SSL.")
+    setup_sub.add_parser("production", help="Full production setup (nginx + supervisor).")
 
     return parser
 
@@ -226,7 +226,7 @@ def _dispatch(args: argparse.Namespace) -> None:
         InitCommand(_load_bench()).run()
 
     elif cmd == "start":
-        from bench_cli.commands.run import RunCommand
+        from bench_cli.commands.start import RunCommand
         RunCommand(_load_bench()).run()
 
     elif cmd == "stop":
@@ -251,10 +251,6 @@ def _dispatch(args: argparse.Namespace) -> None:
         from bench_cli.commands.update import UpdateCommand
         UpdateCommand(_load_bench(), skip_confirm=args.yes).run()
 
-    elif cmd == "update-config":
-        from bench_cli.commands.update_config import UpdateConfigCommand
-        UpdateConfigCommand(_load_bench()).run()
-
     elif cmd == "build-admin":
         from bench_cli.commands.admin import BuildAdminCommand
         BuildAdminCommand().run()
@@ -267,34 +263,9 @@ def _dispatch(args: argparse.Namespace) -> None:
 
 
 def _cmd_get_app(args: argparse.Namespace) -> None:
-    from pathlib import PurePosixPath
-    from bench_cli.config.app_config import AppConfig
-    from bench_cli.core.app import App
-    from bench_cli.managers.python_env_manager import PythonEnvManager
+    from bench_cli.commands.get_app import GetAppCommand
 
-    bench = _load_bench()
-    name = PurePosixPath(args.repo.rstrip("/")).name
-    if name.endswith(".git"):
-        name = name[:-4]
-
-    app_cfg = AppConfig(name=name, repo=args.repo, branch=args.branch or "main")
-    app = App(app_cfg, bench)
-
-    if app.is_cloned:
-        print(f"'{name}' already cloned at {app.path}, skipping clone.")
-    else:
-        print(f"Cloning {name}...")
-        app.clone()
-
-    print(f"Installing {name}...")
-    PythonEnvManager(bench).install_app(app)
-
-    apps_txt = bench.sites_path / "apps.txt"
-    existing = apps_txt.read_text().splitlines() if apps_txt.exists() else []
-    if name not in existing:
-        apps_txt.write_text("\n".join(existing + [name]) + "\n")
-
-    print(f"\n'{name}' installed successfully.")
+    GetAppCommand(_load_bench(), args.repo, args.branch or "main").run()
 
 
 def _cmd_new_site(args: argparse.Namespace) -> None:
@@ -336,7 +307,10 @@ def _cmd_new_site(args: argparse.Namespace) -> None:
 def _dispatch_setup(args: argparse.Namespace) -> None:
     setup_cmd = getattr(args, "setup_command", None)
 
-    if setup_cmd == "nginx":
+    if setup_cmd == "config":
+        from bench_cli.commands.setup_config import UpdateConfigCommand
+        UpdateConfigCommand(_load_bench()).run()
+    elif setup_cmd == "nginx":
         from bench_cli.commands.setup.nginx import SetupNginxCommand
         SetupNginxCommand(_load_bench()).run()
     elif setup_cmd == "letsencrypt":
@@ -346,5 +320,5 @@ def _dispatch_setup(args: argparse.Namespace) -> None:
         from bench_cli.commands.setup.production import SetupProductionCommand
         SetupProductionCommand(_load_bench()).run()
     else:
-        print("Usage: bench setup [nginx|letsencrypt|production]", file=sys.stderr)
+        print("Usage: bench setup [config|nginx|letsencrypt|production]", file=sys.stderr)
         sys.exit(1)

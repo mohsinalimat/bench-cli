@@ -1,12 +1,21 @@
 [
   {
+    "name": "frappe",
+    "title": "Frappe Framework",
+    "description": "Full-stack web framework in Python and JavaScript that powers ERPNext and all Frappe apps.",
+    "repo": "https://github.com/frappe/frappe",
+    "branch": "version-16",
+    "branches": ["version-15", "version-16"],
+    "logo_url": "/logos/frappe.svg"
+  },
+  {
     "name": "erpnext",
     "title": "ERPNext",
     "description": "Full-featured ERP covering accounting, inventory, manufacturing, CRM, HR, and more.",
     "repo": "https://github.com/frappe/erpnext",
     "branch": "version-16",
     "branches": ["version-15", "version-16"],
-    "logo_url": null
+    "logo_url": "/logos/erpnext.svg"
   },
   {
     "name": "hrms",
@@ -15,7 +24,7 @@
     "repo": "https://github.com/frappe/hrms",
     "branch": "version-16",
     "branches": ["version-15", "version-16"],
-    "logo_url": null
+    "logo_url": "/logos/hrms.png"
   },
   {
     "name": "crm",
@@ -24,7 +33,7 @@
     "repo": "https://github.com/frappe/crm",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/crm.svg"
   },
   {
     "name": "helpdesk",
@@ -33,7 +42,7 @@
     "repo": "https://github.com/frappe/helpdesk",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/helpdesk.svg"
   },
   {
     "name": "wiki",
@@ -51,7 +60,7 @@
     "repo": "https://github.com/frappe/drive",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/drive.svg"
   },
   {
     "name": "builder",
@@ -60,7 +69,7 @@
     "repo": "https://github.com/frappe/builder",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/builder.png"
   },
   {
     "name": "lms",
@@ -69,7 +78,7 @@
     "repo": "https://github.com/frappe/lms",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/lms.png"
   },
   {
     "name": "payments",
@@ -87,7 +96,7 @@
     "repo": "https://github.com/frappe/health",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/health.svg"
   },
   {
     "name": "gameplan",
@@ -96,7 +105,7 @@
     "repo": "https://github.com/frappe/gameplan",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/gameplan.svg"
   },
   {
     "name": "insights",
@@ -105,7 +114,7 @@
     "repo": "https://github.com/frappe/insights",
     "branch": "main",
     "branches": ["main", "develop"],
-    "logo_url": null
+    "logo_url": "/logos/insights.svg"
   },
   {
     "name": "lending",
@@ -114,7 +123,7 @@
     "repo": "https://github.com/frappe/lending",
     "branch": "main",
     "branches": ["main"],
-    "logo_url": null
+    "logo_url": "/logos/lending.png"
   },
   {
     "name": "education",
@@ -123,7 +132,7 @@
     "repo": "https://github.com/frappe/education",
     "branch": "version-16",
     "branches": ["version-15", "version-16"],
-    "logo_url": null
+    "logo_url": "/logos/education.svg"
   },
   {
     "name": "non_profit",
@@ -150,6 +159,6 @@
     "repo": "https://github.com/frappe/ecommerce_integrations",
     "branch": "main",
     "branches": ["main"],
-    "logo_url": null
+    "logo_url": "/logos/ecommerce_integrations.png"
   }
 ]

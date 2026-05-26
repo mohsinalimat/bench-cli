@@ -75,7 +75,7 @@ jobs:
           $BENCH frappe --site site2.localhost clear-cache
 
       - name: bench update
-        run: bench update --yes
+        run: bench --yes update
 
       - name: bench build
         run: bench build

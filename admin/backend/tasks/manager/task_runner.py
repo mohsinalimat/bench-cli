@@ -56,12 +56,7 @@ class TaskRunner:
         (task_dir / "status").write_text("running")
 
         process = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "admin.backend.tasks.manager.wrapper",
-                str(task_dir),
-            ],
+            [sys.executable, "-m", "admin.backend.tasks.manager.wrapper", str(task_dir)],
             start_new_session=True,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,

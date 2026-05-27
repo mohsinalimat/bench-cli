@@ -94,9 +94,7 @@ class TaskRunner:
 
     def _build_argv(self, command: str, args: dict) -> list[str]:
         if command not in _WHITELIST:
-            raise ValueError(
-                f"Unknown command: {command!r}. Allowed: {sorted(_WHITELIST)}"
-            )
+            raise ValueError(f"Unknown command: {command!r}. Allowed: {sorted(_WHITELIST)}")
 
         required = _WHITELIST[command]
         for key in required:
@@ -114,17 +112,28 @@ class TaskRunner:
         if command == "backup-site":
             return [bench_bin, "frappe", "--site", args["site"], "backup"]
         if command == "build":
-            return [bench_bin, "frappe", "build"] + (["--app", args["app"]] if args.get("app") else [])
+            cmd = [bench_bin, "frappe", "build"]
+            if args.get("app"):
+                cmd += ["--app", args["app"]]
+            return cmd
         if command == "update":
             return [sys.executable, "-m", "admin.backend.tasks.jobs.update_task", str(self._bench_root)]
         if command == "get-app":
-            return [sys.executable, "-m", "admin.backend.tasks.jobs.get_app_task", str(self._bench_root), args["repo"]] + (["--branch", args["branch"]] if args.get("branch") else [])
+            argv = [sys.executable, "-m", "admin.backend.tasks.jobs.get_app_task", str(self._bench_root), args["repo"]]
+            if args.get("branch"):
+                argv += ["--branch", args["branch"]]
+            return argv
         if command == "new-site":
-            return [sys.executable, "-m", "admin.backend.tasks.jobs.new_site_task", str(self._bench_root), args["name"]] + (["--admin-password", args["admin_password"]] if args.get("admin_password") else [])
+            argv = [sys.executable, "-m", "admin.backend.tasks.jobs.new_site_task", str(self._bench_root), args["name"]]
+            if args.get("admin_password"):
+                argv += ["--admin-password", args["admin_password"]]
+            return argv
         if command == "drop-site":
             return [sys.executable, "-m", "admin.backend.tasks.jobs.drop_site_task", str(self._bench_root), args["site"]]
         if command == "delete-backup":
-            return [sys.executable, "-m", "admin.backend.tasks.jobs.delete_backup_task", str(self._bench_root), args["site"], *args["filenames"]]
+            return [
+                sys.executable, "-m", "admin.backend.tasks.jobs.delete_backup_task", str(self._bench_root), args["site"], *args["filenames"]
+            ]
         if command == "install-app":
             return [sys.executable, "-m", "admin.backend.tasks.jobs.install_app_task", str(self._bench_root), args["site"], args["app"]]
         if command == "switch-branch":

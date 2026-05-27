@@ -1,26 +1,11 @@
-"""
-Runs `bench update` which pulls all apps, reinstalls, and migrates all sites.
-Invoked as: python -m admin.backend.tasks.jobs.update_task <bench_root>
-"""
-from __future__ import annotations
-
-import argparse
-import subprocess
-import sys
-from pathlib import Path
+from bench_cli.commands.update import UpdateCommand
+from .base_task import BaseTask
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("bench_root")
-    args = parser.parse_args()
-
-    bench_root = Path(args.bench_root)
-    bench_bin = str(bench_root / "env" / "bin" / "bench")
-
-    result = subprocess.run([bench_bin, "update"], cwd=str(bench_root))
-    sys.exit(result.returncode)
+class UpdateTask(BaseTask):
+    def run(self) -> None:
+        UpdateCommand(self.bench, skip_confirm=True).run()
 
 
 if __name__ == "__main__":
-    main()
+    UpdateTask.main()

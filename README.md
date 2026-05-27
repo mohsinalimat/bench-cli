@@ -9,6 +9,7 @@ A zero-dependency CLI for managing [Frappe](https://frappeframework.com) environ
 | | Legacy | bench-cli |
 |---|---|---|
 | Dependencies | ~20 Python packages | Zero — stdlib only |
+| Marketplace | None | App registry `apps.json` |
 | Config | None | Single `bench.toml` |
 | Folder layout | Wherever you `bench init` | All benches under `bench-cli/benches/` |
 | Process manager | Honcho / Supervisor | Built-in Procfile runner |

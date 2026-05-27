@@ -27,14 +27,7 @@ const breadcrumbs = computed(() => {
     { label: 'Tasks', route: '/tasks' },
     { label: String(params.id) },
   ]
-  if (path === '/database/slow-queries') return [
-    { label: 'Database' },
-    { label: 'Slow Queries' },
-  ]
-  if (path === '/database/binlogs') return [
-    { label: 'Database' },
-    { label: 'Binary Logs' },
-  ]
+  if (path === '/database') return [{ label: 'Database' }]
   if (path.startsWith('/database/binlogs/')) return [
     { label: 'Database' },
     { label: 'Binary Logs', route: '/database/binlogs' },

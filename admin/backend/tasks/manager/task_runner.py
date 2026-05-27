@@ -96,26 +96,8 @@ class TaskRunner:
             return [bench_bin, "frappe", "--site", args["site"], "migrate"]
         if command == "clear-cache":
             return [bench_bin, "frappe", "--site", args["site"], "clear-cache"]
-        if command == "install-app":
-            return [sys.executable, "-m", "admin.backend.tasks.jobs.install_app_task",
-                    str(self._bench_root), args["site"], args["app"]]
         if command == "uninstall-app":
             return [bench_bin, "frappe", "--site", args["site"], "uninstall-app", args["app"], "--yes", "--no-backup"]
-        if command == "get-app":
-            argv = [sys.executable, "-m", "admin.backend.tasks.jobs.get_app_task",
-                    str(self._bench_root), args["repo"]]
-            if args.get("branch"):
-                argv += ["--branch", args["branch"]]
-            return argv
-        if command == "new-site":
-            argv = [sys.executable, "-m", "admin.backend.tasks.jobs.new_site_task",
-                    str(self._bench_root), args["name"]]
-            if args.get("admin_password"):
-                argv += ["--admin-password", args["admin_password"]]
-            return argv
-        if command == "drop-site":
-            return [sys.executable, "-m", "admin.backend.tasks.jobs.drop_site_task",
-                    str(self._bench_root), args["site"]]
         if command == "backup-site":
             return [bench_bin, "frappe", "--site", args["site"], "backup"]
         if command == "build":
@@ -125,9 +107,22 @@ class TaskRunner:
             return cmd
         if command == "update":
             return [sys.executable, "-m", "admin.backend.tasks.jobs.update_task", str(self._bench_root)]
+        if command == "get-app":
+            argv = [sys.executable, "-m", "admin.backend.tasks.jobs.get_app_task", str(self._bench_root), args["repo"]]
+            if args.get("branch"):
+                argv += ["--branch", args["branch"]]
+            return argv
+        if command == "new-site":
+            argv = [sys.executable, "-m", "admin.backend.tasks.jobs.new_site_task", str(self._bench_root), args["name"]]
+            if args.get("admin_password"):
+                argv += ["--admin-password", args["admin_password"]]
+            return argv
+        if command == "drop-site":
+            return [sys.executable, "-m", "admin.backend.tasks.jobs.drop_site_task", str(self._bench_root), args["site"]]
+        if command == "install-app":
+            return [sys.executable, "-m", "admin.backend.tasks.jobs.install_app_task", str(self._bench_root), args["site"], args["app"]]
         if command == "switch-branch":
-            return [sys.executable, "-m", "admin.backend.tasks.jobs.switch_branch_task",
-                    str(self._bench_root), args["name"], args["branch"]]
+            return [sys.executable, "-m", "admin.backend.tasks.jobs.switch_branch_task", str(self._bench_root), args["name"], args["branch"]]
 
         raise ValueError(f"Unhandled command: {command!r}")
 

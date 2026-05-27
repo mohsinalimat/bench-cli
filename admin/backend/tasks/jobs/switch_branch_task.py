@@ -1,117 +1,82 @@
-"""
-Switches an app to a different git branch, reinstalls it, and rebuilds assets.
-Invoked as: python -m admin.backend.tasks.jobs.switch_branch_task <bench_root> <app_name> <branch>
-"""
-from __future__ import annotations
-
-import argparse
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
 
-from bench_cli.config.bench_config import BenchConfig
-from bench_cli.core.bench import Bench
 from bench_cli.managers.python_env_manager import PythonEnvManager
 from bench_cli.utils import write_toml
+from .base_task import BaseTask
 
 
+class SwitchBranchTask(BaseTask):
+    @classmethod
+    def _parser(cls):
+        p = super()._parser()
+        p.add_argument("name")
+        p.add_argument("branch")
+        return p
 
-class SwitchBranchJob:
-    def __init__(self, bench_root: Path, app_name: str, branch: str) -> None:
-        cfg = BenchConfig.from_file(bench_root / "bench.toml")
-        self.bench = Bench(cfg, bench_root)
-        self.app_name = app_name
-        self.branch = branch
-        self.app_path = bench_root / "apps" / app_name
-        self.python_bin = str(bench_root / "env" / "bin" / "python")
-        self.uv = PythonEnvManager(self.bench)._ensure_uv()
+    def __init__(self, bench, bench_root, args):
+        super().__init__(bench, bench_root, args)
+        self.name = args.name
+        self.branch = args.branch
 
     def run(self) -> None:
-        if not (self.app_path / ".git").exists():
-            print(f"Error: '{self.app_name}' is not cloned at {self.app_path}")
+        app_path = self.bench_root / "apps" / self.name
+        if not (app_path / ".git").exists():
+            print(f"Error: '{self.name}' is not cloned at {app_path}")
             sys.exit(1)
 
-        stashed = self._prepare_repo()
-        self._checkout(stashed)
-        self._reinstall()
-        self._update_bench_toml()
-        self._build_assets()
-        print(f"\n'{self.app_name}' switched to '{self.branch}' successfully.")
-
-    def _prepare_repo(self) -> bool:
-        print(f"Fetching all remote branches for {self.app_name}...")
+        print(f"Fetching all remote branches for {self.name}...")
         sys.stdout.flush()
-        subprocess.run(
-            ["git", "-C", str(self.app_path), "fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"],
-            check=False,
-        )
-        subprocess.run(["git", "-C", str(self.app_path), "merge", "--abort"], capture_output=True, check=False)
-        subprocess.run(["git", "-C", str(self.app_path), "rebase", "--abort"], capture_output=True, check=False)
-        result = subprocess.run(
-            ["git", "-C", str(self.app_path), "stash", "--include-untracked"],
+        subprocess.run(["git", "-C", str(app_path), "fetch", "origin", "+refs/heads/*:refs/remotes/origin/*"], check=False)
+        subprocess.run(["git", "-C", str(app_path), "merge", "--abort"], capture_output=True, check=False)
+        subprocess.run(["git", "-C", str(app_path), "rebase", "--abort"], capture_output=True, check=False)
+        stash = subprocess.run(
+            ["git", "-C", str(app_path), "stash", "--include-untracked"],
             capture_output=True, text=True, check=False,
         )
-        return "No local changes" not in result.stdout
+        stashed = "No local changes" not in stash.stdout
 
-    def _checkout(self, stashed: bool) -> None:
         print(f"Switching to branch '{self.branch}'...")
         sys.stdout.flush()
         result = subprocess.run(
-            ["git", "-C", str(self.app_path), "checkout", "-B", self.branch, f"origin/{self.branch}"],
+            ["git", "-C", str(app_path), "checkout", "-B", self.branch, f"origin/{self.branch}"],
             check=False,
         )
         if result.returncode != 0:
             if stashed:
-                subprocess.run(["git", "-C", str(self.app_path), "stash", "pop"], check=False)
+                subprocess.run(["git", "-C", str(app_path), "stash", "pop"], check=False)
             print(f"Error: could not switch to branch '{self.branch}'")
             sys.exit(result.returncode)
 
-    def _reinstall(self) -> None:
-        print(f"Reinstalling {self.app_name}...")
+        uv = PythonEnvManager(self.bench)._ensure_uv()
+        python_bin = str(self.bench_root / "env" / "bin" / "python")
+        print(f"Reinstalling {self.name}...")
         sys.stdout.flush()
-        subprocess.run(
-            [self.uv, "pip", "install", "--python", self.python_bin, "-e", str(self.app_path)],
-            check=False,
-        )
+        subprocess.run([uv, "pip", "install", "--python", python_bin, "-e", str(app_path)], check=False)
 
-    def _build_assets(self) -> None:
-        app_dir = self.bench.path / "apps" / self.app_name
-        if (app_dir / "package.json").exists():
-            print(f"\nInstalling JS dependencies for {self.app_name}...")
-            sys.stdout.flush()
-            subprocess.run(["yarn", "install"], cwd=str(app_dir), check=False)
-
-        print(f"\nBuilding assets...")
-        sys.stdout.flush()
-        bench_bin = str(self.bench.path / "env" / "bin" / "bench")
-        subprocess.run(
-            [bench_bin, "frappe", "build", "--force"],
-            cwd=str(self.bench.sites_path),
-            check=False,
-        )
-
-    def _update_bench_toml(self) -> None:
-        bench_toml = self.bench.path / "bench.toml"
+        bench_toml = self.bench_root / "bench.toml"
         with bench_toml.open("rb") as fh:
             raw = tomllib.load(fh)
         for app_entry in raw.get("apps", []):
-            if app_entry.get("name") == self.app_name:
+            if app_entry.get("name") == self.name:
                 app_entry["branch"] = self.branch
                 break
         write_toml(bench_toml, raw)
-        print(f"Updated bench.toml: {self.app_name} -> {self.branch}")
+        print(f"Updated bench.toml: {self.name} -> {self.branch}")
         sys.stdout.flush()
 
+        bench_bin = str(self.bench.env_path / "bin" / "bench")
+        if (app_path / "package.json").exists():
+            print(f"\nInstalling JS dependencies for {self.name}...")
+            sys.stdout.flush()
+            subprocess.run(["yarn", "install"], cwd=str(app_path), check=False)
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("bench_root")
-    parser.add_argument("app_name")
-    parser.add_argument("branch")
-    args = parser.parse_args()
-    SwitchBranchJob(Path(args.bench_root), args.app_name, args.branch).run()
+        print("\nBuilding assets...")
+        sys.stdout.flush()
+        subprocess.run([bench_bin, "frappe", "build", "--force"], cwd=str(self.bench.sites_path), check=False)
+        print(f"\n'{self.name}' switched to '{self.branch}' successfully.")
 
 
 if __name__ == "__main__":
-    main()
+    SwitchBranchTask.main()

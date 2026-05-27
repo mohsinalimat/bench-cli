@@ -1,28 +1,23 @@
-"""
-Clones an app repo and pip-installs it into the bench virtualenv.
-Invoked as: python -m admin.backend.tasks.jobs.get_app_task <bench_root> <repo> [--branch <branch>]
-"""
-from __future__ import annotations
-
-import argparse
-from pathlib import Path
-
-from bench_cli.config.bench_config import BenchConfig
-from bench_cli.core.bench import Bench
 from bench_cli.commands.get_app import GetAppCommand
+from .base_task import BaseTask
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("bench_root")
-    parser.add_argument("repo")
-    parser.add_argument("--branch", default="")
-    args = parser.parse_args()
+class GetAppTask(BaseTask):
+    @classmethod
+    def _parser(cls):
+        p = super()._parser()
+        p.add_argument("repo")
+        p.add_argument("--branch", default="")
+        return p
 
-    bench_root = Path(args.bench_root)
-    bench = Bench(BenchConfig.from_file(bench_root / "bench.toml"), bench_root)
-    GetAppCommand(bench, args.repo, args.branch).run()
+    def __init__(self, bench, bench_root, args):
+        super().__init__(bench, bench_root, args)
+        self.repo = args.repo
+        self.branch = args.branch
+
+    def run(self) -> None:
+        GetAppCommand(self.bench, self.repo, self.branch).run()
 
 
 if __name__ == "__main__":
-    main()
+    GetAppTask.main()

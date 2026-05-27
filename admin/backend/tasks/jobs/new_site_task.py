@@ -1,53 +1,34 @@
-"""
-Creates a new Frappe site.
-Invoked as: python -m admin.backend.tasks.jobs.new_site_task <bench_root> <site_name>
-"""
-from __future__ import annotations
-
-import argparse
 import sys
-from pathlib import Path
 
-from bench_cli.config.bench_config import BenchConfig
 from bench_cli.config.site_config import SiteConfig
-from bench_cli.core.bench import Bench
 from bench_cli.core.site import Site
+from .base_task import BaseTask
 
 
-class NewSiteJob:
-    def __init__(self, bench_root: Path, site_name: str, admin_password: str) -> None:
-        cfg = BenchConfig.from_file(bench_root / "bench.toml")
-        self.bench = Bench(cfg, bench_root)
-        self.site = Site(SiteConfig(name=site_name, apps=[], admin_password=admin_password), self.bench)
-        self.site_name = site_name
+class NewSiteTask(BaseTask):
+    @classmethod
+    def _parser(cls):
+        p = super()._parser()
+        p.add_argument("name")
+        p.add_argument("--admin-password", default="admin")
+        return p
+
+    def __init__(self, bench, bench_root, args):
+        super().__init__(bench, bench_root, args)
+        self.name = args.name
+        self.admin_password = args.admin_password
 
     def run(self) -> None:
-        if self.site.exists:
-            print(f"Site '{self.site_name}' already exists. Skipping creation.")
-            sys.stdout.flush()
+        site = Site(SiteConfig(name=self.name, apps=[], admin_password=self.admin_password), self.bench)
+        if site.exists:
+            print(f"Site '{self.name}' already exists. Skipping creation.")
             return
-
-        self._create()
-        self._refresh_common_config()
-        print(f"\nSite '{self.site_name}' created successfully.")
-
-    def _create(self) -> None:
-        print(f"Creating site '{self.site_name}'...")
+        print(f"Creating site '{self.name}'...")
         sys.stdout.flush()
-        self.site.create()
-
-    def _refresh_common_config(self) -> None:
+        site.create()
         self.bench.write_common_site_config()
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("bench_root")
-    parser.add_argument("site_name")
-    parser.add_argument("--admin-password", default="admin")
-    args = parser.parse_args()
-    NewSiteJob(Path(args.bench_root), args.site_name, args.admin_password).run()
+        print(f"\nSite '{self.name}' created successfully.")
 
 
 if __name__ == "__main__":
-    main()
+    NewSiteTask.main()

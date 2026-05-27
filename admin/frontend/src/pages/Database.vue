@@ -103,9 +103,9 @@ function fmtSize(bytes) {
 
 const activeTab = ref(0)
 const tabs = [
-  { label: 'Binary Logs' },
-  { label: 'Slow Queries' },
   { label: 'Process List' },
+  { label: 'Slow Queries' },
+  { label: 'Binary Logs' },
 ]
 
 let processTimer
@@ -123,8 +123,36 @@ onUnmounted(() => clearInterval(processTimer))
   <Tabs :tabs="tabs" v-model="activeTab">
     <template #tab-panel="{ tab }">
 
+      <!-- Process List -->
+      <div v-if="tab.label === 'Process List'" class="pt-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="text-sm text-ink-gray-5">{{ processes.length }} connection{{ processes.length !== 1 ? 's' : '' }}</span>
+          <span class="flex items-center gap-1.5 text-xs text-ink-gray-4">
+            <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            Refreshing every 5s
+          </span>
+        </div>
+        <ErrorMessage v-if="processesError" :message="processesError" />
+        <LoadingText v-else-if="processesLoading" />
+        <ListView
+          v-else
+          :columns="processColumns"
+          :rows="processes"
+          row-key="id"
+          :options="{ selectable: false, showTooltip: false }"
+        >
+          <template #cell="{ column, item }">
+            <span
+              v-if="column.key === 'time'"
+              :class="item > 30 ? 'font-semibold text-red-600' : item > 5 ? 'text-amber-600' : ''"
+            >{{ item }}</span>
+            <span v-else class="truncate max-w-xs block">{{ item }}</span>
+          </template>
+        </ListView>
+      </div>
+
       <!-- Binary Logs -->
-      <div v-if="tab.label === 'Binary Logs'" class="pt-4">
+      <div v-else-if="tab.label === 'Binary Logs'" class="pt-4">
         <LoadingText v-if="binlogsLoading" />
         <ErrorMessage v-else-if="binlogsError" :message="binlogsError" />
         <ListView
@@ -151,34 +179,6 @@ onUnmounted(() => clearInterval(processTimer))
           row-key="_time"
           :options="{ selectable: false, showTooltip: false }"
         />
-      </div>
-
-      <!-- Process List -->
-      <div v-else-if="tab.label === 'Process List'" class="pt-4">
-        <div class="mb-3 flex items-center justify-between">
-          <span class="text-sm text-ink-gray-5">{{ processes.length }} connection{{ processes.length !== 1 ? 's' : '' }}</span>
-          <span class="flex items-center gap-1.5 text-xs text-ink-gray-4">
-            <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            Refreshing every 5s
-          </span>
-        </div>
-        <ErrorMessage v-if="processesError" :message="processesError" />
-        <LoadingText v-else-if="processesLoading" />
-        <ListView
-          v-else
-          :columns="processColumns"
-          :rows="processes"
-          row-key="id"
-          :options="{ selectable: false, showTooltip: false }"
-        >
-          <template #cell="{ column, item }">
-            <span
-              v-if="column.key === 'time'"
-              :class="item > 30 ? 'font-semibold text-red-600' : item > 5 ? 'text-amber-600' : ''"
-            >{{ item }}</span>
-            <span v-else class="truncate max-w-xs block">{{ item }}</span>
-          </template>
-        </ListView>
       </div>
 
     </template>

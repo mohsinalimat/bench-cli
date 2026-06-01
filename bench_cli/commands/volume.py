@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from bench_cli.config.volume_config import VolumeConfig
 from bench_cli.exceptions import BenchError, CommandError
@@ -9,10 +10,50 @@ from bench_cli.platform import is_linux
 from bench_cli.utils import run_command
 from bench_cli.managers.volume_manager import VolumeManager
 
+if TYPE_CHECKING:
+    from bench_cli.core.bench import Bench
+    from bench_cli.managers.snapshot_orchestrator import SnapshotOrchestrator
 
-def _require_enabled(config: VolumeConfig):
+
+def _ask_dataset() -> str | None:
+    print("Which dataset would you like to snapshot?")
+    print("  [1] benches")
+    print("  [2] mariadb")
+    print("  [3] both (default)")
+    choice = input("Enter choice [1/2/3]: ").strip()
+    if choice == "1":
+        return "benches"
+    if choice == "2":
+        return "mariadb"
+    return None
+
+
+def _require_enabled(config: VolumeConfig) -> None:
     if not config.enabled:
         raise BenchError("Volume management is disabled. Set volume.enabled = true in bench.toml.")
+
+
+def _resolve_dataset(config: VolumeConfig, dataset_name: str) -> str:
+    if dataset_name == "mariadb":
+        return config.mariadb_dataset
+    return config.benches_dataset
+
+
+def _target_datasets(config: VolumeConfig, dataset_name: str | None) -> list[str]:
+    if dataset_name == "benches":
+        return [config.benches_dataset]
+    if dataset_name == "mariadb":
+        return [config.mariadb_dataset]
+    return [config.benches_dataset, config.mariadb_dataset]
+
+
+def _build_orchestrator(bench: Bench) -> SnapshotOrchestrator:
+    from bench_cli.managers.mariadb_manager import MariaDBManager
+    from bench_cli.managers.snapshot_orchestrator import SnapshotOrchestrator
+
+    volume = VolumeManager(bench.config.volume)
+    mariadb = MariaDBManager(bench.config.mariadb)
+    return SnapshotOrchestrator(volume, mariadb, bench)
 
 
 def _stop_mariadb() -> None:
@@ -99,28 +140,19 @@ class VolumeStatusCommand:
 
 
 class VolumeSnapshotCommand:
-    def __init__(self, config: VolumeConfig, dataset_name: str | None) -> None:
-        self.config = config
+    def __init__(self, bench: Bench, dataset_name: str | None) -> None:
+        self.bench = bench
+        self.config = bench.config.volume
         self.dataset_name = dataset_name
 
     def run(self) -> None:
         _require_enabled(self.config)
-        if not self.config.snapshots.enabled:
-            raise BenchError("Snapshots are disabled. Set volume.snapshots.enabled = true in bench.toml.")
-        from bench_cli.managers.volume_manager import VolumeManager
-
-        manager = VolumeManager(self.config)
+        dataset_name = self.dataset_name if self.dataset_name is not None else _ask_dataset()
+        orchestrator = _build_orchestrator(self.bench)
         tag = datetime.now().strftime("%Y%m%d-%H%M%S")
-        for dataset in self._target_datasets():
-            manager.snapshot(dataset, tag)
+        for dataset in _target_datasets(self.config, dataset_name):
+            orchestrator.create_snapshot(dataset, tag)
             print(f"Snapshot created: {dataset}@{tag}")
-
-    def _target_datasets(self) -> list[str]:
-        if self.dataset_name == "benches":
-            return [self.config.benches_dataset]
-        if self.dataset_name == "mariadb":
-            return [self.config.mariadb_dataset]
-        return [self.config.benches_dataset, self.config.mariadb_dataset]
 
 
 class VolumeListSnapshotsCommand:
@@ -130,10 +162,8 @@ class VolumeListSnapshotsCommand:
 
     def run(self) -> None:
         _require_enabled(self.config)
-        from bench_cli.managers.volume_manager import VolumeManager
-
         manager = VolumeManager(self.config)
-        for dataset in self._target_datasets():
+        for dataset in _target_datasets(self.config, self.dataset_name):
             snapshots = manager.list_snapshots(dataset)
             print(f"Dataset: {dataset}")
             if not snapshots:
@@ -144,33 +174,36 @@ class VolumeListSnapshotsCommand:
                 ts = snap.created_at.strftime("%Y-%m-%d %H:%M:%S")
                 print(f"  {snap.snapshot_tag:<30} created: {ts}  used: {used_mb}M")
 
-    def _target_datasets(self) -> list[str]:
-        if self.dataset_name == "benches":
-            return [self.config.benches_dataset]
-        if self.dataset_name == "mariadb":
-            return [self.config.mariadb_dataset]
-        return [self.config.benches_dataset, self.config.mariadb_dataset]
-
 
 class VolumeDestroySnapshotCommand:
-    def __init__(self, config: VolumeConfig, tag: str, dataset_name: str, confirmed: bool) -> None:
+    def __init__(self, config: VolumeConfig, tag: str, dataset_name: str) -> None:
         self.config = config
         self.tag = tag
         self.dataset_name = dataset_name
-        self.confirmed = confirmed
 
     def run(self) -> None:
         _require_enabled(self.config)
-        if not self.confirmed:
-            raise BenchError("Pass --yes to confirm snapshot deletion.")
-        from bench_cli.managers.volume_manager import VolumeManager
-
-        manager = VolumeManager(self.config)
-        dataset = self._resolve_dataset()
-        manager.destroy_snapshot(dataset, self.tag)
+        dataset = _resolve_dataset(self.config, self.dataset_name)
+        VolumeManager(self.config).destroy_snapshot(dataset, self.tag)
         print(f"Snapshot destroyed: {dataset}@{self.tag}")
 
-    def _resolve_dataset(self) -> str:
-        if self.dataset_name == "mariadb":
-            return self.config.mariadb_dataset
-        return self.config.benches_dataset
+
+class VolumeRestoreSnapshotCommand:
+    def __init__(self, bench: Bench, tag: str, dataset_name: str) -> None:
+        self.bench = bench
+        self.config = bench.config.volume
+        self.tag = tag
+        self.dataset_name = dataset_name
+
+    def run(self) -> None:
+        _require_enabled(self.config)
+        dataset = _resolve_dataset(self.config, self.dataset_name)
+        print(f"Restoring {dataset} to snapshot {self.tag}...")
+        self._warn(dataset)
+        _build_orchestrator(self.bench).rollback_snapshot(dataset, self.tag)
+        print(f"Restored {dataset}@{self.tag}.")
+
+    def _warn(self, dataset: str) -> None:
+        print("Sites will be put into maintenance mode during restore.")
+        if dataset == self.config.mariadb_dataset:
+            print("MariaDB will be stopped and restarted during restore.")

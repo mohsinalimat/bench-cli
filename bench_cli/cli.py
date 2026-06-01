@@ -188,6 +188,10 @@ def _make_parser() -> argparse.ArgumentParser:
     p_destroy.add_argument("tag", help="Snapshot tag to destroy (e.g. 20250528-140000).")
     p_destroy.add_argument("--dataset", choices=["benches", "mariadb"], default="benches", help="Dataset the snapshot belongs to.")
 
+    p_restore = volume_sub.add_parser("restore-snapshot", help="Restore a dataset to a snapshot.")
+    p_restore.add_argument("tag", help="Snapshot tag to restore to (e.g. 20250528-140000).")
+    p_restore.add_argument("--dataset", choices=["benches", "mariadb"], default="benches", help="Dataset to restore.")
+
     return parser
 
 
@@ -385,21 +389,25 @@ def _dispatch_volume(args: argparse.Namespace) -> None:
     from bench_cli.commands.volume import (
         VolumeDestroySnapshotCommand,
         VolumeListSnapshotsCommand,
+        VolumeRestoreSnapshotCommand,
         VolumeSnapshotCommand,
         VolumeStatusCommand,
     )
 
-    config = _load_bench().config.volume
+    bench = _load_bench()
+    config = bench.config.volume
     volume_cmd = getattr(args, "volume_command", None)
 
     if volume_cmd == "status":
         VolumeStatusCommand(config).run()
     elif volume_cmd == "snapshot":
-        VolumeSnapshotCommand(config, args.dataset).run()
+        VolumeSnapshotCommand(bench, args.dataset).run()
     elif volume_cmd == "list-snapshots":
         VolumeListSnapshotsCommand(config, args.dataset).run()
     elif volume_cmd == "destroy-snapshot":
-        VolumeDestroySnapshotCommand(config, args.tag, args.dataset, args.yes).run()
+        VolumeDestroySnapshotCommand(config, args.tag, args.dataset).run()
+    elif volume_cmd == "restore-snapshot":
+        VolumeRestoreSnapshotCommand(bench, args.tag, args.dataset).run()
     else:
-        print("Usage: bench volume [setup|status|snapshot|list-snapshots|destroy-snapshot]", file=sys.stderr)
+        print("Usage: bench volume [setup|status|snapshot|list-snapshots|destroy-snapshot|restore-snapshot]", file=sys.stderr)
         sys.exit(1)

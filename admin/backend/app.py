@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, session
 
 from .views.apps import apps_bp
 from .views.dashboard import dashboard_bp
@@ -17,23 +18,35 @@ from bench_cli.config.bench_config import BenchConfig
 from bench_cli.exceptions import ConfigError
 
 _STATIC_DIR = Path(__file__).parent / "static"
+_OPEN_PATHS = {"/api/status", "/api/login", "/api/logout"}
 
 
 def create_app(bench_root: Path) -> Flask:
     app = Flask(__name__, static_folder=str(_STATIC_DIR), static_url_path="/static")
     app.config["BENCH_ROOT"] = bench_root
     app.config["TEMPLATES_AUTO_RELOAD"] = False
+    app.secret_key = secrets.token_hex(32)
+
+    def _load_config():
+        return BenchConfig.from_file(bench_root / "bench.toml")
+
+    def _check_enabled(config: BenchConfig):
+        if not config.admin.enabled:
+            return jsonify({"error": "Admin is disabled", "enabled": False}), 503
+        return None
+
+    def _check_password(config: BenchConfig):
+        if config.admin.password and not session.get("authenticated"):
+            return jsonify({"error": "Authentication required"}), 401
+        return None
 
     @app.before_request
-    def _check_admin_enabled():
-        if not request.path.startswith("/api"):
-            return None
-        if request.path == "/api/status":
+    def _guard():
+        if not request.path.startswith("/api") or request.path in _OPEN_PATHS:
             return None
         try:
-            config = BenchConfig.from_file(bench_root / "bench.toml")
-            if not config.admin.enabled:
-                return jsonify({"error": "Admin is disabled", "enabled": False}), 503
+            config = _load_config()
+            return _check_enabled(config) or _check_password(config)
         except Exception as exc:
             return jsonify({"error": str(exc), "enabled": False}), 503
 
@@ -41,9 +54,35 @@ def create_app(bench_root: Path) -> Flask:
     def api_status():
         try:
             config = BenchConfig.from_file(bench_root / "bench.toml")
-            return jsonify({"enabled": config.admin.enabled, "name": config.name})
+            password_required = bool(config.admin.password)
+            authenticated = not password_required or bool(session.get("authenticated"))
+            return jsonify(
+                {
+                    "enabled": config.admin.enabled,
+                    "name": config.name,
+                    "password_required": password_required,
+                    "authenticated": authenticated,
+                }
+            )
         except Exception as exc:
             return jsonify({"enabled": False, "error": str(exc)}), 503
+
+    @app.route("/api/login", methods=["POST"])
+    def api_login():
+        try:
+            config = BenchConfig.from_file(bench_root / "bench.toml")
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 503
+        data = request.get_json(silent=True) or {}
+        if data.get("password") == config.admin.password:
+            session["authenticated"] = True
+            return jsonify({"ok": True})
+        return jsonify({"ok": False, "error": "Incorrect password"}), 401
+
+    @app.route("/api/logout", methods=["POST"])
+    def api_logout():
+        session.clear()
+        return jsonify({"ok": True})
 
     app.register_blueprint(dashboard_bp, url_prefix="/api")
     app.register_blueprint(apps_bp, url_prefix="/api/apps")

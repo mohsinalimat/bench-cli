@@ -67,28 +67,16 @@ class PythonEnvManager:
         )
 
     def build_assets_for_app(self, app: "App") -> None:
-        """Build or link assets for one app.
-
-        If the app ships pre-built bundles in dist/ (committed to git),
-        wire them up without running yarn or esbuild. Otherwise fall back
-        to a full yarn install + frappe build.
-        """
-        app_dir = app.path  # apps/{name}/
-        # Frappe apps keep their Python package (and public/) one level in:
-        # apps/{name}/{name}/public/
-        app_public_dir = app_dir / app.config.name / "public"
+        app_public_dir = app.path / app.config.name / "public"
         dist_dir = app_public_dir / "dist"
 
-        if self._has_prebuilt_assets(dist_dir):
-            print(f"  Pre-built assets found for {app.config.name} — linking without rebuild...")
-            sys.stdout.flush()
-            self._setup_prebuilt_assets(app.config.name, app_public_dir, dist_dir)
+        if self._try_download_prebuilt_assets(app, app_public_dir, dist_dir):
             return
 
-        if (app_dir / "package.json").exists():
+        if (app.path / "package.json").exists():
             print(f"  Installing JS dependencies for {app.config.name}...")
             sys.stdout.flush()
-            run_command(["yarn", "install"], cwd=app_dir, stream_output=True)
+            run_command(["yarn", "install"], cwd=app.path, stream_output=True)
 
         print(f"  Building assets for {app.config.name}...")
         sys.stdout.flush()
@@ -102,11 +90,65 @@ class PythonEnvManager:
     # Pre-built asset helpers
     # ------------------------------------------------------------------
 
-    def _has_prebuilt_assets(self, dist_dir: Path) -> bool:
-        js_dir = dist_dir / "js"
-        return js_dir.is_dir() and any(
-            _BUNDLE_RE.match(f.name) for f in js_dir.iterdir()
+    def _try_download_prebuilt_assets(
+        self, app: "App", app_public_dir: Path, dist_dir: Path
+    ) -> bool:
+        import subprocess
+        import tarfile as tf
+        import tempfile
+        import urllib.error
+        import urllib.request
+
+        r = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, cwd=app.path,
         )
+        if r.returncode != 0:
+            return False
+        branch = r.stdout.strip()
+        if branch in ("HEAD", ""):
+            return False
+
+        r = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, cwd=app.path,
+        )
+        if r.returncode != 0:
+            return False
+
+        owner_repo = self._parse_github_owner_repo(r.stdout.strip())
+        if not owner_repo:
+            return False
+
+        tag = f"assets-{branch.replace('/', '-')}"
+        asset = f"{app.config.name}-assets.tar.gz"
+        url = f"https://github.com/{owner_repo}/releases/download/{tag}/{asset}"
+
+        tmp_path = Path(tempfile.mktemp(suffix=".tar.gz"))
+        try:
+            print(f"  Downloading pre-built assets for {app.config.name}...")
+            sys.stdout.flush()
+            urllib.request.urlretrieve(url, tmp_path)
+        except urllib.error.URLError:
+            tmp_path.unlink(missing_ok=True)
+            return False
+
+        try:
+            app_public_dir.mkdir(parents=True, exist_ok=True)
+            with tf.open(tmp_path) as tar:
+                tar.extractall(path=app_public_dir)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            return False
+
+        tmp_path.unlink(missing_ok=True)
+        self._setup_prebuilt_assets(app.config.name, app_public_dir, dist_dir)
+        return True
+
+    @staticmethod
+    def _parse_github_owner_repo(remote_url: str) -> str | None:
+        m = re.search(r"github\.com[:/](.+?)(?:\.git)?$", remote_url.strip())
+        return m.group(1) if m else None
 
     def _setup_prebuilt_assets(
         self, app_name: str, app_public_dir: Path, dist_dir: Path

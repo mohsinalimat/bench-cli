@@ -11,10 +11,18 @@ class RunCommand:
 
     def run(self) -> None:
         process_manager = ProcessManagerFactory.create(self.bench)
-        procfile = process_manager.procfile_path
-        if not procfile.exists():
-            raise BenchError(
-                f"Procfile not found at {procfile}. "
-                "Run 'bench init' first to initialise the bench."
-            )
+        if self.bench.config.nginx.enabled:
+            from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
+            assert isinstance(process_manager, SupervisorProcessManager)
+            if not process_manager.supervisor_conf_path.exists():
+                raise BenchError(
+                    "Supervisor config not found. "
+                    "Run 'bench setup production' first."
+                )
+        else:
+            if not process_manager.procfile_path.exists():
+                raise BenchError(
+                    f"Procfile not found at {process_manager.procfile_path}. "
+                    "Run 'bench init' first to initialise the bench."
+                )
         process_manager.start()

@@ -66,6 +66,17 @@ class SupervisorProcessManager(ProcessManager):
         )
         return "RUNNING" in result.stdout
 
+    def reload_web(self) -> None:
+        """Clear the Frappe asset cache in Redis then restart the web worker."""
+        import subprocess
+        cache_port = self.bench.config.redis.cache_port
+        subprocess.run(["redis-cli", "-p", str(cache_port), "del", "assets_json"],
+                       capture_output=True)
+        if self.is_running():
+            print("Restarting web worker to pick up new assets...")
+            run_command(["supervisorctl", "restart",
+                         f"{self.bench.config.name}:{self.bench.config.name}-web"])
+
     def _render_supervisor_conf(self) -> str:
         defs = self._prod_process_definitions()
         program_names = ",".join(

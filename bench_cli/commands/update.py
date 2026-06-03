@@ -19,6 +19,7 @@ class UpdateCommand:
         self._reinstall_apps()
         self._rebuild_assets()
         self._migrate_sites()
+        ProcessManagerFactory.create(self.bench).reload_web()
 
     def _warn_if_running(self) -> None:
         if not ProcessManagerFactory.create(self.bench).is_running():

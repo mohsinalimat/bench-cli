@@ -79,6 +79,9 @@ class ProcessManager:
         result = subprocess.run(["pgrep", "-f", pattern], capture_output=True)
         return bool(result.stdout.strip())
 
+    def reload_web(self) -> None:
+        pass
+
     # ── Procfile runner ─────────────────────────────────────────────────────
 
     def _run_procfile(self) -> None:

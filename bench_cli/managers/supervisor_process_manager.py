@@ -113,6 +113,23 @@ class SupervisorProcessManager(ProcessManager):
             lines.insert(2, f"environment={','.join(env_vars)}")
         return "\n".join(lines) + "\n\n"
 
+    def _admin_definition(self) -> ProcessDefinition:
+        cli_root = _cli_root()
+        python = AdminEnvManager(cli_root).python
+        cfg = self.bench.config.admin
+        command = (
+            f"PYTHONPATH={cli_root} {python} -m admin.backend.server"
+            f" --bench-root {self.bench.path}"
+            f" --port {cfg.port}"
+            f" --timeout {cfg.timeout}"
+            f" --no-timeout"
+        )
+        return ProcessDefinition(
+            name="admin",
+            command=command,
+            log_file=self.bench.logs_path / "admin.log",
+        )
+
     def _prod_process_definitions(self) -> list[ProcessDefinition]:
         """Process definitions for production (no dev processes)."""
         defs = [

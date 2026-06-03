@@ -79,8 +79,7 @@ class App:
         run_command(cmd)
         run_command([
             "git", "-C", str(self.path),
-            "merge", "--ff-only",
-            f"origin/{self.config.branch}",
+            "reset", "--hard", f"origin/{self.config.branch}",
         ])
 
     def build_assets(self) -> None:

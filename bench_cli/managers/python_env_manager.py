@@ -83,7 +83,7 @@ class PythonEnvManager:
         print(f"  Building assets for {app.config.name}...")
         sys.stdout.flush()
         run_command(
-            [*self.bench.frappe_call, "frappe", "build", "--force"],
+            [*self.bench.frappe_call, "frappe", "build", "--force", "--app", app.config.name],
             cwd=self.bench.sites_path,
             stream_output=True,
         )

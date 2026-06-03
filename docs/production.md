@@ -1,6 +1,6 @@
 # Production Setup Specification
 
-Covers DNS-based multitenancy, Nginx reverse-proxy configuration, and Let's Encrypt SSL certificate management. All settings live in `bench.yml`.
+Covers DNS-based multitenancy, Nginx reverse-proxy configuration, and Let's Encrypt SSL certificate management. All settings live in `bench.toml`.
 
 > **Platform scope:** Everything in this file targets **Ubuntu/Linux servers**. Let's Encrypt requires a publicly reachable server with real DNS records. Nginx system integration (`/etc/nginx/conf.d/`, `systemctl reload nginx`) is Linux-specific. On macOS, use `bench run` with honcho for development; skip the `bench setup` commands entirely.
 
@@ -39,7 +39,7 @@ A site whose `name` (or any entry in its `domains` list) matches the incoming `H
 
 ### Site name vs domains
 
-The site `name` in `bench.yml` is the canonical hostname — it is the directory name under `sites/` and the key Frappe uses internally. Each site may also declare additional `domains` that are aliases pointing at the same site. Nginx includes all of them in the `server_name` directive and in the SSL certificate SAN list.
+The site `name` in `bench.toml` is the canonical hostname — it is the directory name under `sites/` and the key Frappe uses internally. Each site may also declare additional `domains` that are aliases pointing at the same site. Nginx includes all of them in the `server_name` directive and in the SSL certificate SAN list.
 
 ```
 site1.example.com    ← site name (canonical)
@@ -48,21 +48,18 @@ www.site1.example.com ← domain alias
 
 ---
 
-## bench.yml additions
+## bench.toml additions
 
 ### `sites[]` — new optional fields
 
-```yaml
-sites:
-  - name: site1.example.com
-    db_name: site1_db
-    db_password: "secret"
-    apps:
-      - frappe
-      - erpnext
-    domains:                       # additional hostnames served by this site
-      - www.site1.example.com
-    ssl: true                      # obtain a Let's Encrypt cert covering name + domains
+```toml
+[[sites]]
+name = "site1.example.com"
+db_name = "site1_db"
+db_password = "secret"
+apps = ["frappe", "erpnext"]
+domains = ["www.site1.example.com"]  # additional hostnames served by this site
+ssl = true                            # obtain a Let's Encrypt cert covering name + domains
 ```
 
 | Field | Type | Required | Default | Description |
@@ -72,14 +69,14 @@ sites:
 
 ### `nginx` section (new)
 
-```yaml
-nginx:
-  enabled: false               # must be set to true for bench setup nginx to proceed
-  http_port: 80
-  https_port: 443
-  config_dir: /etc/nginx/conf.d    # where to write the include-pointer file (requires sudo)
-  worker_processes: auto           # passed through to nginx.conf
-  client_max_body_size: 50m        # for file uploads
+```toml
+[nginx]
+enabled = false              # must be set to true for bench setup nginx to proceed
+http_port = 80
+https_port = 443
+config_dir = "/etc/nginx/conf.d"   # where to write the include-pointer file (requires sudo)
+worker_processes = "auto"          # passed through to nginx.conf
+client_max_body_size = "50m"       # for file uploads
 ```
 
 | Field | Type | Required | Default | Description |
@@ -93,10 +90,10 @@ nginx:
 
 ### `letsencrypt` section (new)
 
-```yaml
-letsencrypt:
-  email: admin@example.com      # required for ACME account registration
-  webroot_path: /var/www/letsencrypt  # certbot places challenge files here
+```toml
+[letsencrypt]
+email = "admin@example.com"              # required for ACME account registration
+webroot_path = "/var/www/letsencrypt"    # certbot places challenge files here
 ```
 
 | Field | Type | Required | Default | Description |
@@ -139,7 +136,7 @@ include /absolute/path/to/bench/config/nginx/*.conf;
 This means:
 - Per-site configs stay inside the bench directory (no root needed to edit them).
 - Only the symlink creation and nginx reload require `sudo`.
-- Removing a site from `bench.yml` and re-running `bench setup nginx` removes its config file and the dead entry disappears automatically.
+- Removing a site from `bench.toml` and re-running `bench setup nginx` removes its config file and the dead entry disappears automatically.
 
 ---
 
@@ -457,14 +454,14 @@ bench_cli/
 ### `bench setup nginx`
 
 **Pre-conditions:**
-- `nginx.enabled: true` in `bench.yml`.
+- `nginx.enabled = true` in `bench.toml`.
 - `bench init` has been run (sites exist).
 - Process has `sudo` access.
 
 **Steps:**
 
 ```
-1.  Validate bench.yml (including production validation rules)
+1.  Validate bench.toml (including production validation rules)
 2.  Install nginx if not present
 3.  Ensure config/nginx/ directory exists
 4.  For each site: generate HTTP-only config (ssl_ready=False even for ssl sites)
@@ -483,12 +480,12 @@ Idempotent — re-running after certs are obtained upgrades each site's block to
 **Pre-conditions:**
 - `bench setup nginx` has been run and nginx is serving port 80.
 - DNS records for all `ssl: true` sites (and their `domains`) point to this server.
-- `letsencrypt.email` is set in `bench.yml`.
+- `letsencrypt.email` is set in `bench.toml`.
 
 **Steps:**
 
 ```
-1.  Validate bench.yml
+1.  Validate bench.toml
 2.  Install certbot if not present
 3.  Ensure webroot_path exists (create with mkdir -p)
 4.  For each site with ssl: true:
@@ -511,8 +508,7 @@ Certbot's built-in renewal timer (`certbot.timer` systemd unit, installed with c
 Orchestrates the full production setup in the correct dependency order.
 
 **Pre-conditions:**
-- `process_manager: supervisor` in `bench.yml`.
-- `nginx.enabled: true` in `bench.yml`.
+- `nginx.enabled = true` in `bench.toml`.
 - `bench init` has been run.
 - DNS records are configured (required before `letsencrypt` step).
 - Running on a Linux server (Ubuntu). Exits with an error on macOS.
@@ -520,7 +516,7 @@ Orchestrates the full production setup in the correct dependency order.
 **Steps:**
 
 ```
-1.  Validate bench.yml
+1.  Validate bench.toml
 2.  Verify running on Linux (error with helpful message if macOS)
 3.  Verify process_manager is supervisor (error if not)
 4.  Write "dns_multitenant": 1 into sites/common_site_config.json
@@ -568,54 +564,44 @@ Renders the content of each generated `config/nginx/<site>.conf` as a syntax-hig
 
 ---
 
-## Full production bench.yml example
+## Full production bench.toml example
 
-```yaml
-bench:
-  name: prod-bench
-  python: "3.14"
-  process_manager: supervisor
+```toml
+[bench]
+name = "prod-bench"
+python = "3.14"
 
-apps:
-  - name: frappe
-    repo: https://github.com/frappe/frappe
-    branch: version-16
-  - name: erpnext
-    repo: https://github.com/frappe/erpnext
-    branch: version-16
+[[apps]]
+name = "frappe"
+repo = "https://github.com/frappe/frappe"
+branch = "version-16"
 
-sites:
-  - name: acme.example.com
-    db_name: acme_db
-    db_password: "s3cr3t"
-    apps: [frappe, erpnext]
-    domains:
-      - www.acme.example.com
-    ssl: true
+[[apps]]
+name = "erpnext"
+repo = "https://github.com/frappe/erpnext"
+branch = "version-16"
 
-  - name: beta.example.com
-    db_name: beta_db
-    db_password: "b3t@pwd"
-    apps: [frappe]
-    ssl: true
+[mariadb]
+root_password = "root_s3cr3t"
 
-mariadb:
-  root_password: "root_s3cr3t"
+[redis]
+cache_port = 13000
+queue_port = 11000
+socketio_port = 12000
 
-redis:
-  cache_port: 13000
-  queue_port: 11000
-  socketio_port: 12000
+[workers]
+default = 4
+short = 2
+long = 1
 
-workers:
-  default: 4
-  short: 2
-  long: 1
+[admin]
+port = 8002
+password = "your-admin-password"
 
-nginx:
-  enabled: true
-  client_max_body_size: 100m
+[nginx]
+enabled = true
+client_max_body_size = "100m"
 
-letsencrypt:
-  email: ops@example.com
+[letsencrypt]
+email = "ops@example.com"
 ```

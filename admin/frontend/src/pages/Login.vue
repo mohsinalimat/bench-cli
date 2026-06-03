@@ -39,15 +39,11 @@ async function login() {
 
 <template>
   <div class="flex h-screen flex-col items-center justify-center bg-surface-gray-2">
-    <div class="mb-6 flex flex-col items-center gap-3">
-      <img src="/logos/frappe-icon.png" alt="Frappe" class="h-12 w-12 rounded-xl" />
-      <h1 class="text-xl font-semibold text-ink-gray-9">
-        {{ benchName ? `Login to ${benchName}` : 'Bench Admin' }}
+    <div class="w-full max-w-sm rounded-xl border border-outline-gray-2 bg-surface-white p-5 shadow-sm">
+      <h1 class="mb-4 text-center text-base font-medium text-ink-gray-7">
+        {{ benchName || 'Bench Admin' }}
       </h1>
-    </div>
-
-    <div class="w-full max-w-sm rounded-xl border border-outline-gray-2 bg-surface-white p-6 shadow-sm">
-      <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-4">
         <TextInput
           v-model="password"
           type="password"
@@ -64,5 +60,7 @@ async function login() {
         <code class="rounded bg-surface-gray-2 px-1 font-mono">bench.toml</code>
       </p>
     </div>
+
+    <p class="absolute bottom-6 text-xs text-ink-gray-3">Frappe Bench Administrator</p>
   </div>
 </template>

@@ -73,6 +73,10 @@ port = 13000
 default = 2
 short = 1
 long = 1
+
+[admin]
+port = 8002
+password = "your-admin-password"   # required — admin refuses to start without this
 ```
 
 Apps and sites are tracked by the filesystem — no need to list them in `bench.toml`.
@@ -85,15 +89,17 @@ Apps and sites are tracked by the filesystem — no need to list them in `bench.
 | `bench init` | Install deps, create venv, clone framework, generate Procfile |
 | `bench start` | Start all processes (web, workers, Redis, admin UI) |
 | `bench stop` | Stop a running bench from another terminal |
+| `bench restart` | Restart supervisor processes (production only) |
 | `bench get-app <repo>` | Clone and install an app |
 | `bench new-site <name>` | Create a site |
-| `bench build` | Rebuild JS/CSS assets |
+| `bench build` | Download pre-built assets (use `--force` to rebuild from source) |
 | `bench update` | git pull + reinstall + migrate all sites |
+| `bench upgrade` | Pull latest bench-cli and download the admin frontend |
 | `bench setup config` | Regenerate Procfile and config files from bench.toml |
-| `bench build-admin` | Rebuild admin frontend assets |
+| `bench build-admin` | Rebuild admin frontend assets from source |
 | `bench setup nginx` | Generate and install nginx config |
 | `bench setup letsencrypt` | Obtain SSL certificates |
-| `bench setup production` | Full production setup (nginx + SSL) |
+| `bench setup production` | Full production setup (nginx + SSL + supervisor) |
 
 With multiple benches: `bench -b my-bench start`
 
@@ -104,7 +110,7 @@ With multiple benches: `bench -b my-bench start`
 enabled = true
 
 [letsencrypt]
-email = ops@example.com
+email = "ops@example.com"
 ```
 
 ```bash

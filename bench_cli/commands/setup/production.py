@@ -46,7 +46,6 @@ class SetupProductionCommand:
         from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
         mgr = SupervisorProcessManager(self.bench)
         mgr.generate_config()
-        mgr.install_config()
         mgr.reload()
 
     def _setup_nginx(self) -> None:

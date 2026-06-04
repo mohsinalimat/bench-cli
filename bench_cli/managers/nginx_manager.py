@@ -274,25 +274,6 @@ class NginxManager:
         live_dir = Path("/etc/letsencrypt/live") / domain
         return (live_dir / "fullchain.pem").exists() and (live_dir / "privkey.pem").exists()
 
-    def install_config(self) -> None:
-        nginx_dir = self.bench.config.nginx.config_dir
-        symlink_path = nginx_dir / f"{self.bench.config.name}.conf"
-        source_path = self.bench.config_path / "nginx" / "include.conf"
-
-        if symlink_path.exists() or symlink_path.is_symlink():
-            symlink_path.unlink()
-
-        try:
-            os.symlink(source_path, symlink_path)
-        except PermissionError:
-            print(
-                f"Permission denied creating symlink at {symlink_path}.\n"
-                f"Run the following command manually:\n"
-                f"  sudo ln -sf {source_path} {symlink_path}\n"
-                f"Then reload nginx:\n"
-                f"  sudo systemctl reload nginx"
-            )
-
     def reload(self) -> None:
         run_command(["nginx", "-t"])
         if is_linux():

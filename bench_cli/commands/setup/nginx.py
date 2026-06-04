@@ -19,7 +19,6 @@ class SetupNginxCommand:
         self.nginx_manager.install()
         self._ensure_nginx_config_directory()
         self.nginx_manager.generate_config(ssl_ready=True)
-        self.nginx_manager.install_config()
         self.nginx_manager.reload()
         self._print_site_urls()
 

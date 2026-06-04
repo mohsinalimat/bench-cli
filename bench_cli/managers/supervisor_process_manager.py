@@ -25,22 +25,6 @@ class SupervisorProcessManager(ProcessManager):
         conf = self._render_supervisor_conf()
         self.supervisor_conf_path.write_text(conf)
 
-    def install_config(self) -> None:
-        """We don't need to do this at all, we can simply include everything in the supervisord.conf file"""
-        symlink = self.supervisor_include_dir / f"{self.bench.config.name}.conf"
-        if symlink.exists() or symlink.is_symlink():
-            symlink.unlink()
-        try:
-            os.symlink(self.supervisor_conf_path, symlink)
-        except PermissionError:
-            print(
-                f"Permission denied creating symlink at {symlink}.\n"
-                f"Run manually:\n"
-                f"  sudo ln -sf {self.supervisor_conf_path} {symlink}\n"
-                f"Then reload supervisord:\n"
-                f"  sudo supervisorctl reread && sudo supervisorctl update"
-            )
-
     def reload(self) -> None:
         run_command(["supervisorctl", "reread"])
         run_command(["supervisorctl", "update"])

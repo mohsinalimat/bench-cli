@@ -16,7 +16,7 @@ BENCH_CLI_DIR="$REAL_HOME/bench-cli"
 
 echo $BENCH_CLI_DIR
 
-Clone or update
+# Clone or update
 if [ -d "$BENCH_CLI_DIR" ]; then
     echo "Updating bench-cli..."
     git -C "$BENCH_CLI_DIR" pull

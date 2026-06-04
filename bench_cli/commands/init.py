@@ -92,6 +92,10 @@ class InitCommand:
         from bench_cli.managers.mariadb_manager import MariaDBManager
         from bench_cli.platform import get_package_manager, is_linux
 
+        pkg = get_package_manager()
+        if is_linux():
+            pkg.update()
+
         mariadb_manager = MariaDBManager(self.bench.config.mariadb)
         mariadb_manager.install()
         mariadb_manager.start()

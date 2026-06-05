@@ -13,7 +13,7 @@ class InitCommand:
         self._total_steps = 0
 
     def run(self) -> None:
-        production = self.bench.config.nginx.enabled
+        production = self.bench.config.production.nginx
         volume_enabled = self.bench.config.volume.enabled
         self._total_steps = 10 + (3 if production else 0) + (1 if volume_enabled else 0)
 
@@ -62,8 +62,8 @@ class InitCommand:
         ProcessManagerFactory.create(self.bench).generate_config()
 
         if production:
-            self._step("Setup supervisor")
-            self._setup_supervisor()
+            self._step("Setup process manager")
+            self._setup_process_manager()
             self._step("Setup nginx")
             self._setup_nginx()
             self._step("Setup Let's Encrypt SSL")
@@ -92,6 +92,10 @@ class InitCommand:
         from bench_cli.managers.mariadb_manager import MariaDBManager
         from bench_cli.platform import get_package_manager, is_linux
 
+        pkg = get_package_manager()
+        if is_linux():
+            pkg.update()
+
         mariadb_manager = MariaDBManager(self.bench.config.mariadb)
         mariadb_manager.install()
         mariadb_manager.start()
@@ -116,13 +120,19 @@ class InitCommand:
         existing["dns_multitenant"] = 1
         common_config_path.write_text(json.dumps(existing, indent=2))
 
-    def _setup_supervisor(self) -> None:
-        from bench_cli.platform import get_package_manager
-
-        get_package_manager().install("supervisor")
-        from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
-
-        mgr = SupervisorProcessManager(self.bench)
+    def _setup_process_manager(self) -> None:
+        if self.bench.config.production.lightweight:
+            from bench_cli.managers.systemd_process_manager import SystemdProcessManager
+            mgr = SystemdProcessManager(self.bench)
+        else:
+            import subprocess
+            from bench_cli.platform import get_package_manager, is_linux
+            pkg = get_package_manager()
+            if is_linux() and not pkg.is_installed("supervisor"):
+                pkg.install("supervisor")
+                subprocess.run(["sudo", "systemctl", "disable", "--now", "supervisor"], check=False)
+            from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
+            mgr = SupervisorProcessManager(self.bench)
         mgr.install_config()
         mgr.reload()
 

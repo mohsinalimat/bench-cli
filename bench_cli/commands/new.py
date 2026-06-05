@@ -42,6 +42,14 @@ enabled = false
 timeout = 180
 password = "{admin_password}"
 
+# ── Production (optional) ─────────────────────────────────────────────────
+# Uncomment to enable production mode (nginx + process manager).
+# Without this section, 'bench start' uses Procfile-based dev mode.
+#
+# [production]
+# nginx = false          # enable nginx reverse proxy
+# lightweight = true   # true = systemd (lower memory), false = supervisor
+
 # ── Volume (ZFS, optional) ────────────────────────────────────────────────
 # Uncomment and configure to use ZFS-based volume management.
 # Requires Linux and the zfsutils-linux package.

@@ -8,25 +8,28 @@ from bench_cli.exceptions import BenchError
 if typing.TYPE_CHECKING:
     from bench_cli.core.bench import Bench
 
-_OWN_COMMANDS = frozenset([
-    "new",
-    "init",
-    "start",
-    "stop",
-    "restart",
-    "get-app",
-    "new-site",
-    "frappe",
-    "build",
-    "update",
-    "upgrade",
-    "build-admin",
-    "setup",
-    "volume",
-    "remove-app",
-    "uninstall-app",
-    "list-apps",
-])
+_OWN_COMMANDS = frozenset(
+    [
+        "new",
+        "init",
+        "start",
+        "stop",
+        "restart",
+        "get-app",
+        "new-site",
+        "frappe",
+        "build",
+        "update",
+        "upgrade",
+        "build-admin",
+        "setup",
+        "volume",
+        "remove-app",
+        "uninstall-app",
+        "list-apps",
+        "status",
+    ]
+)
 _OWN_GROUP_OPTIONS = frozenset(["--verbose", "--yes", "-y", "--bench", "-b", "--help", "-h"])
 
 # Global bench name selected via -b / --bench; set in main() before dispatch.
@@ -156,6 +159,7 @@ def _make_parser() -> argparse.ArgumentParser:
     p_uninstall.add_argument("app", help="App name to uninstall.")
 
     sub.add_parser("list-apps", help="List apps installed in the bench.")
+    sub.add_parser("status", help="Show bench status summary.")
 
     p_newsite = sub.add_parser("new-site", help="Create a new site and add it to bench.toml.")
     p_newsite.add_argument("name", help="Site name (e.g. site2.localhost).")
@@ -241,6 +245,7 @@ def main() -> None:
     _active_bench = args.bench
 
     import time
+
     verbose = getattr(args, "verbose", False)
     _t0 = time.monotonic()
     try:
@@ -342,6 +347,11 @@ def _dispatch(args: argparse.Namespace) -> None:
 
         UpgradeCommand().run()
 
+    elif cmd == "status":
+        from bench_cli.commands.status import StatusCommand
+
+        StatusCommand(_load_bench()).run()
+
     elif cmd == "setup":
         _dispatch_setup(args)
 
@@ -388,7 +398,7 @@ def _dispatch_setup(args: argparse.Namespace) -> None:
         SetupLetsEncryptCommand(_load_bench()).run()
     elif setup_cmd == "production":
         from bench_cli.commands.setup.production import SetupProductionCommand
-
+    
         SetupProductionCommand(_load_bench()).run()
     elif setup_cmd == "requirements":
         from bench_cli.commands.setup.requirements import SetupRequirementsCommand

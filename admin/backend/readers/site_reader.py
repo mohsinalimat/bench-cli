@@ -104,7 +104,7 @@ def _query_via_db_cli(site_config: dict) -> list[str] | None:
                 cli, *conn_args,
                 "--batch", "--skip-column-names",
                 db_name,
-                "-e", "SELECT app_name FROM `tabInstalled Applications` ORDER BY idx",
+                "-e", "SELECT app_name FROM `tabInstalled Application` ORDER BY idx",
             ],
             capture_output=True,
             text=True,

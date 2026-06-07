@@ -14,6 +14,7 @@ from .views.processes import processes_bp
 from .views.settings import settings_bp
 from .views.sites import sites_bp
 from .views.tasks import tasks_bp
+from .views.updates import updates_bp
 from .views.volume import volume_bp
 from bench_cli.config.bench_config import BenchConfig
 from bench_cli.exceptions import ConfigError
@@ -96,6 +97,7 @@ def create_app(bench_root: Path) -> Flask:
     app.register_blueprint(database_bp, url_prefix="/api/database")
     app.register_blueprint(tasks_bp, url_prefix="/api/tasks")
     app.register_blueprint(settings_bp, url_prefix="/api/settings")
+    app.register_blueprint(updates_bp, url_prefix="/api/updates")
     app.register_blueprint(volume_bp, url_prefix="/api/volume")
     app.register_blueprint(stats_bp, url_prefix="/api")
 

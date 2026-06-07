@@ -210,8 +210,18 @@ async function loadSchedule() {
   }
 }
 
+const CRON_RE = /^(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)\s+(\*|[0-9,\-*/]+)$/
+
 async function saveSchedule() {
   scheduleError.value = ''
+  if (!scheduleInput.value.trim()) {
+    scheduleError.value = 'Schedule expression is required.'
+    return
+  }
+  if (!CRON_RE.test(scheduleInput.value.trim())) {
+    scheduleError.value = "Invalid cron expression. Expected 5 fields like '0 2 * * *' (minute hour day month weekday)."
+    return
+  }
   scheduleSaving.value = true
   try {
     const res = await fetch(`/api/sites/${siteName}/backup-schedule`, {

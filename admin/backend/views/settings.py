@@ -8,6 +8,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from bench_cli.config.bench_config import BenchConfig
 from bench_cli.config.toml_writer import bench_config_to_toml
+from ..validators import first_error, validate_email, validate_port, validate_worker_count
 
 settings_bp = Blueprint("settings", __name__)
 
@@ -222,6 +223,23 @@ def update_settings():
         p.enabled = bool(production_data.get("enabled", p.enabled))
         p.nginx = bool(production_data.get("nginx", p.nginx))
         p.lightweight = bool(production_data.get("lightweight", p.lightweight))
+
+    err = first_error(
+        validate_port(config.http_port, "HTTP Port"),
+        validate_port(config.socketio_port, "SocketIO Port"),
+        validate_port(config.mariadb.port, "MariaDB Port"),
+        validate_port(config.redis.cache_port, "Redis Cache Port"),
+        validate_port(config.redis.queue_port, "Redis Queue Port"),
+        validate_port(config.redis.socketio_port, "Redis SocketIO Port"),
+        validate_port(config.nginx.http_port, "Nginx HTTP Port"),
+        validate_port(config.nginx.https_port, "Nginx HTTPS Port"),
+        validate_worker_count(config.workers.default_count, "Default workers"),
+        validate_worker_count(config.workers.short_count, "Short workers"),
+        validate_worker_count(config.workers.long_count, "Long workers"),
+        validate_email(config.letsencrypt.email),
+    )
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
 
     try:
         config.validate()

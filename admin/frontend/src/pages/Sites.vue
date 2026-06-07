@@ -108,6 +108,10 @@ watch(backupSourceSite, async (site) => {
 
 async function createSite() {
   if (!siteName.value.trim()) { createError.value = 'Site name is required.'; return }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9\-.]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/.test(siteName.value.trim())) {
+    createError.value = 'Site name must be a valid hostname (letters, numbers, hyphens, and dots only).'
+    return
+  }
   if (restoreFromBackup.value) {
     if (restoreMode.value === 'existing') {
       if (!backupSourceSite.value) { createError.value = 'Select a source site.'; return }

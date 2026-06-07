@@ -8,6 +8,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 
 from admin.backend.tasks.callbacks import new_site_failure_callback, ssl_setup_failure_callback
+from ..validators import validate_cron_expression, validate_site_name
 from admin.backend.tasks.manager.task_runner import TaskRunner
 
 from ..readers.app_reader import AppReader
@@ -63,8 +64,9 @@ def create():
 
     name = (data.get("name") or "").strip()
     admin_password = (data.get("admin_password") or "admin").strip() or "admin"
-    if not name:
-        return jsonify({"ok": False, "error": "Site name is required."})
+    err = validate_site_name(name)
+    if err:
+        return jsonify({"ok": False, "error": err})
 
     # Check site doesn't already exist
     if (bench_root / "sites" / name / "site_config.json").exists():
@@ -87,9 +89,9 @@ def create_from_upload():
     bench_root = Path(current_app.config["BENCH_ROOT"])
     name = (request.form.get("name") or "").strip()
     admin_password = (request.form.get("admin_password") or "admin").strip() or "admin"
-
-    if not name:
-        return jsonify({"ok": False, "error": "Site name is required."})
+    err = validate_site_name(name)
+    if err:
+        return jsonify({"ok": False, "error": err})
     if (bench_root / "sites" / name / "site_config.json").exists():
         return jsonify({"ok": False, "error": f"Site '{name}' already exists."})
 
@@ -339,8 +341,9 @@ def set_backup_schedule(name: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
     data = request.get_json(silent=True) or {}
     schedule = (data.get("schedule") or "").strip()
-    if not schedule:
-        return jsonify({"ok": False, "error": "Schedule expression is required."})
+    err = validate_cron_expression(schedule)
+    if err:
+        return jsonify({"ok": False, "error": err})
     try:
         CronManager(bench_root).set_schedule(name, schedule)
     except Exception as e:

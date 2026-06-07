@@ -35,10 +35,39 @@ async function load() {
   }
 }
 
+function validateSettings() {
+  const ports = [
+    [form.value.bench.http_port, 'HTTP Port'],
+    [form.value.bench.socketio_port, 'SocketIO Port'],
+    [form.value.mariadb.port, 'MariaDB Port'],
+    [form.value.redis.cache_port, 'Redis Cache Port'],
+    [form.value.redis.queue_port, 'Redis Queue Port'],
+    [form.value.redis.socketio_port, 'Redis SocketIO Port'],
+    [form.value.nginx.http_port, 'Nginx HTTP Port'],
+    [form.value.nginx.https_port, 'Nginx HTTPS Port'],
+  ]
+  for (const [port, name] of ports) {
+    const n = Number(port)
+    if (!Number.isInteger(n) || n < 1 || n > 65535)
+      return `${name} must be between 1 and 65535.`
+  }
+  for (const [key, label] of [['default', 'Default'], ['short', 'Short'], ['long', 'Long']]) {
+    const n = Number(form.value.workers[key])
+    if (!Number.isInteger(n) || n < 1)
+      return `${label} workers must be at least 1.`
+  }
+  const email = (form.value.letsencrypt.email || '').trim()
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return "Invalid email address for Let's Encrypt."
+  return null
+}
+
 async function save() {
-  saving.value = true
   saveError.value = ''
   saveSuccess.value = ''
+  const validationError = validateSettings()
+  if (validationError) { saveError.value = validationError; return }
+  saving.value = true
   try {
     const res = await fetch('/api/settings/', {
       method: 'PATCH',

@@ -16,7 +16,7 @@ A zero-dependency CLI for managing [Frappe](https://frappeframework.com) environ
 | Folder layout | Wherever you `bench init` | All benches under `bench-cli/benches/` |
 | Process manager | Honcho / Supervisor | Built-in Procfile runner |
 | Python env | pip + virtualenv | [uv](https://github.com/astral-sh/uv) (auto-installed) |
-| Admin UI | None | Built-in — app status, sites, logs, task runner |
+| Admin UI | None | Built-in — app status, sites, logs, task runner, process memory/CPU |
 
 ## Requirements
 
@@ -138,7 +138,24 @@ bench restart                  # restart all bench processes (works with both ma
 
 When `admin.domain` is set, `bench setup production` obtains a certificate for that domain and generates an HTTPS nginx proxy block. HTTP redirects to HTTPS automatically.
 
-The admin UI (port 8002 / `admin.domain`) shows Start, Stop, and Restart buttons on the Processes page when running in production mode.
+The admin UI (port 8002 / `admin.domain`) shows Start, Stop, and Restart buttons on the Processes page when running in production mode. The Processes page also displays live CPU and memory usage per process.
+
+## Admin UI
+
+The built-in admin UI runs on port 8002 (configurable via `[admin] port`).
+
+| Page | Features |
+|------|----------|
+| Dashboard | Bench overview and quick stats |
+| Apps | Install/remove apps, edit upstream URL and branch, per-app update status |
+| Sites | Create/restore/drop sites, install apps, edit site config, backup schedules |
+| Processes | Live process list with CPU %, memory (MB), uptime, and log links; Start/Stop/Restart in production mode |
+| Logs | Tail and search log files with live streaming |
+| Tasks | Multi-step task view with collapsible output per step; task history |
+| Database | MariaDB process list, slow queries, binary log viewer |
+| Settings | Edit bench config (ports, workers, nginx, Let's Encrypt) with validation |
+
+All forms validate input before submission — site names are checked for valid hostname format, repository URLs for valid git URL format, branch names for legal characters, cron expressions for valid 5-field syntax, and port numbers for the 1–65535 range.
 
 ## Directory layout
 

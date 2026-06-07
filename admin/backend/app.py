@@ -11,6 +11,7 @@ from .views.stats import stats_bp
 from .views.database import database_bp
 from .views.logs import logs_bp
 from .views.processes import processes_bp
+from .views.setup import setup_bp
 from .views.sites import sites_bp
 from .views.tasks import tasks_bp
 from .views.volume import volume_bp
@@ -19,6 +20,17 @@ from bench_cli.exceptions import ConfigError
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _OPEN_PATHS = {"/api/status", "/api/login", "/api/logout"}
+
+
+def _wizard_status(bench_root: Path) -> dict:
+    import tomllib
+    name = bench_root.name
+    try:
+        with open(bench_root / "bench.toml", "rb") as f:
+            name = tomllib.load(f).get("bench", {}).get("name", name)
+    except Exception:
+        pass
+    return {"wizard": True, "name": name, "enabled": True, "authenticated": True}
 
 
 def create_app(bench_root: Path) -> Flask:
@@ -46,6 +58,8 @@ def create_app(bench_root: Path) -> Flask:
     def _guard():
         if not request.path.startswith("/api") or request.path in _OPEN_PATHS:
             return None
+        if request.path.startswith("/api/setup/"):
+            return None
         try:
             config = _load_config()
             return _check_enabled(config) or _check_password(config)
@@ -54,6 +68,8 @@ def create_app(bench_root: Path) -> Flask:
 
     @app.route("/api/status")
     def api_status():
+        if not (bench_root / "env" / "bin" / "python").exists():
+            return jsonify(_wizard_status(bench_root))
         try:
             config = BenchConfig.from_file(bench_root / "bench.toml")
             if not config.admin.password:
@@ -87,6 +103,7 @@ def create_app(bench_root: Path) -> Flask:
         session.clear()
         return jsonify({"ok": True})
 
+    app.register_blueprint(setup_bp, url_prefix="/api/setup")
     app.register_blueprint(dashboard_bp, url_prefix="/api")
     app.register_blueprint(apps_bp, url_prefix="/api/apps")
     app.register_blueprint(sites_bp, url_prefix="/api/sites")

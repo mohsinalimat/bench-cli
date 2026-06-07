@@ -78,6 +78,11 @@ long = 1
 port = 8002
 password = "your-admin-password"   # required — admin refuses to start without this
 domain = "admin.example.com"       # optional — serve admin over HTTPS via nginx
+
+[production]
+# Just adding this section enables production mode (supervisor by default).
+lightweight = false   # false = supervisor (default), true = systemd --user
+nginx = true          # run nginx setup as part of bench setup production
 ```
 
 Apps and sites are tracked by the filesystem — no need to list them in `bench.toml`.
@@ -90,7 +95,7 @@ Apps and sites are tracked by the filesystem — no need to list them in `bench.
 | `bench init` | Install deps, create venv, clone framework, generate Procfile |
 | `bench start` | Start all processes (web, workers, Redis, admin UI) |
 | `bench stop` | Stop a running bench from another terminal |
-| `bench restart` | Restart supervisor processes (production only) |
+| `bench restart` | Restart all processes — supervisor or systemd (production only) |
 | `bench get-app <repo>` | Clone and install an app |
 | `bench new-site <name>` | Create a site |
 | `bench build` | Download pre-built assets (use `--force` to rebuild from source) |
@@ -100,13 +105,17 @@ Apps and sites are tracked by the filesystem — no need to list them in `bench.
 | `bench build-admin` | Rebuild admin frontend assets from source |
 | `bench setup nginx` | Generate and install nginx config |
 | `bench setup letsencrypt` | Obtain SSL certificates |
-| `bench setup production` | Full production setup (nginx + SSL + supervisor) |
+| `bench setup production` | Full production setup (nginx + SSL + supervisor/systemd) |
 
 With multiple benches: `bench -b my-bench start`
 
 ## Production
 
 ```toml
+[production]
+nginx = true          # include nginx in bench setup production
+# lightweight = true  # uncomment to use systemd --user instead of supervisor
+
 [nginx]
 enabled = true
 
@@ -120,11 +129,17 @@ domain = "admin.example.com"   # optional — serve admin UI over HTTPS
 ```
 
 ```bash
-bench setup production         # nginx + supervisor
-bench setup letsencrypt        # SSL certs for all sites + admin domain
+bench setup production         # process manager (supervisor or systemd) + nginx + SSL
+bench restart                  # restart all bench processes (works with both managers)
 ```
 
-When `admin.domain` is set, `bench setup letsencrypt` obtains a certificate for that domain and `bench setup nginx` generates an HTTPS proxy block for it. HTTP redirects to HTTPS automatically.
+**Process managers:**
+- **Supervisor** (default) — runs a bench-owned `supervisord` instance, no root needed.
+- **Systemd** (`lightweight = true`) — uses `systemctl --user` units; requires `loginctl enable-linger` once.
+
+When `admin.domain` is set, `bench setup production` obtains a certificate for that domain and generates an HTTPS nginx proxy block. HTTP redirects to HTTPS automatically.
+
+The admin UI (port 8002 / `admin.domain`) shows Start, Stop, and Restart buttons on the Processes page when running in production mode.
 
 ## Directory layout
 

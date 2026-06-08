@@ -319,14 +319,14 @@ watch(() => props.modelValue, (val) => {
                       {{ showUpdateDetails ? 'Hide details' : 'Details' }}
                     </button>
                   </div>
-                  <div v-if="showUpdateDetails" class="flex flex-col gap-1.5 text-sm">
-                    <div class="flex items-center gap-2">
-                      <span class="w-16 text-ink-gray-5">Current</span>
-                      <span class="font-mono text-ink-gray-8">{{ cliUpdate.local_commit }}</span>
+                  <div v-if="showUpdateDetails" class="rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-4 py-3 flex flex-col gap-2.5 text-sm">
+                    <div class="flex items-baseline gap-3">
+                      <span class="w-14 shrink-0 text-ink-gray-5">Current</span>
+                      <span class="font-mono text-xs font-semibold text-ink-gray-8 break-all">{{ cliUpdate.local_commit }}</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                      <span class="w-16 text-ink-gray-5">Latest</span>
-                      <span class="font-mono text-ink-gray-8">{{ cliUpdate.remote_commit || '—' }}</span>
+                    <div class="flex items-baseline gap-3">
+                      <span class="w-14 shrink-0 text-ink-gray-5">Latest</span>
+                      <span class="font-mono text-xs font-semibold text-ink-gray-8 break-all">{{ cliUpdate.remote_commit || '—' }}</span>
                     </div>
                   </div>
                 </template>

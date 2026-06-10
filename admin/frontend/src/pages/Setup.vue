@@ -14,7 +14,7 @@ const taskStreaming = ref(false)
 const terminal = ref(null)
 const benchName = ref('')
 const isLinux = ref(true)
-const isSudoersSetup = ref(false)
+const isSudoersSetup = ref(null)
 
 const form = ref({
   python: '3.14',
@@ -220,7 +220,7 @@ function backToConfig() {
       <!-- Body -->
       <div class="flex-1 overflow-y-auto p-5">
         <div v-if="step === 'passwords'" class="flex flex-col gap-4">
-          <div v-if="!isSudoersSetup" class="space-y-1.5">
+          <div v-if="isSudoersSetup === false" class="space-y-1.5">
             <FormLabel label="Sudo password" />
             <Password v-model="form.sudo_password" placeholder="Used once to install system packages" />
           </div>

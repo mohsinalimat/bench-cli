@@ -152,9 +152,11 @@ onMounted(() => { loadSites(); loadRegistry() })
 
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-4">
-    <div class="flex justify-end">
+    <Teleport to="#header-actions">
       <Button variant="solid" @click="openCreate">Create Site</Button>
-    </div>
+    </Teleport>
+
+    <h2 class="text-base font-normal text-ink-gray-5">Your Sites</h2>
 
     <LoadingText v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
@@ -179,19 +181,18 @@ onMounted(() => { loadSites(); loadRegistry() })
               </span>
             </span>
           </div>
-          <div v-if="s.installed_apps?.length" class="mt-1.5 flex items-center gap-1.5">
-            <div
-              v-for="app in s.installed_apps"
-              :key="app"
-              class="flex h-5 w-5 shrink-0 items-center justify-center rounded overflow-hidden"
-              :style="logoMap[app] ? {} : { background: hashColor(app) }"
-            >
-              <img v-if="logoMap[app]" :src="logoMap[app]" :alt="app" class="h-full w-full object-contain" />
-              <span v-else class="text-[9px] font-bold text-white leading-none">{{ app[0].toUpperCase() }}</span>
-            </div>
+        </div>
+        <div v-if="s.installed_apps?.length" class="flex items-center gap-2 shrink-0">
+          <div
+            v-for="app in s.installed_apps"
+            :key="app"
+            class="flex h-7 w-7 shrink-0 items-center justify-center rounded overflow-hidden"
+            :style="logoMap[app] ? {} : { background: hashColor(app) }"
+          >
+            <img v-if="logoMap[app]" :src="logoMap[app]" :alt="app" class="h-full w-full object-contain" />
+            <span v-else class="text-xs font-bold text-white leading-none">{{ app[0].toUpperCase() }}</span>
           </div>
         </div>
-        <span class="text-xs text-ink-gray-4 shrink-0">{{ s.db_name }}</span>
       </RouterLink>
     </div>
 

@@ -19,6 +19,7 @@ const loading = ref(true)
 const error = ref('')
 
 const logoMap = computed(() => Object.fromEntries(registry.value.map(a => [a.name, a.logo_url])))
+const titleMap = computed(() => Object.fromEntries(registry.value.map(a => [a.name, a.title])))
 
 const actionLoading = ref('')
 const actionError = ref('')
@@ -461,7 +462,7 @@ onMounted(() => { load(); loadRegistry() })
                     <img v-if="logoMap[app]" :src="logoMap[app]" :alt="app" class="h-full w-full object-contain" />
                     <span v-else class="text-sm font-bold text-white">{{ app[0].toUpperCase() }}</span>
                   </div>
-                  <span class="text-sm font-medium text-ink-gray-8">{{ app }}</span>
+                  <span class="text-sm font-medium text-ink-gray-8">{{ titleMap[app] || app }}</span>
                 </div>
                 <Button variant="ghost" theme="red" size="sm" @click="confirmUninstall(app)">
                   Uninstall

@@ -306,10 +306,12 @@ onMounted(() => { loadApps(); loadRegistry(); loadUpdateStatus(); loadDefaultBra
 
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-4">
-    <div class="flex justify-end gap-2">
+    <Teleport to="#header-actions">
       <Button variant="outline" :loading="updateLoading" @click="runUpdate">Update Bench</Button>
       <Button variant="solid" @click="openAdd">Add App</Button>
-    </div>
+    </Teleport>
+
+    <h2 class="text-base font-normal text-ink-gray-5">Installed Apps</h2>
 
     <LoadingText v-if="loading" />
     <ErrorMessage v-else-if="error" :message="error" />
@@ -319,7 +321,7 @@ onMounted(() => { loadApps(); loadRegistry(); loadUpdateStatus(); loadDefaultBra
       <div
         v-for="a in apps"
         :key="a.name"
-        class="flex items-start gap-3 rounded-lg border border-outline-gray-1 bg-surface-white px-4 py-3 shadow-sm"
+        class="flex items-center gap-3 rounded-lg border border-outline-gray-1 bg-surface-white px-4 py-3 shadow-sm"
       >
         <!-- Logo -->
         <div
@@ -337,7 +339,6 @@ onMounted(() => { loadApps(); loadRegistry(); loadUpdateStatus(); loadDefaultBra
             <Badge :label="a.branch || '—'" theme="gray" variant="subtle" />
             <Badge v-if="a.uncommitted_changes" label="dirty" theme="orange" />
           </div>
-          <p class="mt-0.5 truncate text-xs text-ink-gray-4">{{ a.repo }}</p>
         </div>
 
         <!-- Update status -->

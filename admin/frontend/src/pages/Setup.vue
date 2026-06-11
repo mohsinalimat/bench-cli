@@ -168,8 +168,8 @@ function streamTask(url, onDone) {
 }
 
 function nextStep() {
-  if (step.value === 'passwords' && (!form.value.mariadb_password || !form.value.admin_password)) {
-    error.value = 'MariaDB and admin passwords are required.'
+  if (step.value === 'passwords' && (!form.value.mariadb_password || !form.value.admin_password || (isSudoersSetup.value == false && !form.value.sudo_password) )) {
+    error.value = 'All password fields are required'
     return
   }
   error.value = ''

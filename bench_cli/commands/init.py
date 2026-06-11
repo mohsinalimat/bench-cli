@@ -85,8 +85,10 @@ class InitCommand:
     # ── init steps ─────────────────────────────────────────────────────────
 
     def _do_run(self) -> None:
+        from bench_cli.platform import is_linux
+
         production = self.bench.config.production.nginx
-        volume_enabled = self.bench.config.volume.enabled
+        volume_enabled = is_linux()  # ZFS is mandatory on Linux; macOS is dev-only
         has_sudoers = bool(self._sudo_password)
         self._total_steps = 10 + (3 if production else 0) + (1 if volume_enabled else 0) + (1 if has_sudoers else 0)
 
@@ -210,7 +212,7 @@ class InitCommand:
     def _setup_volume(self) -> None:
         from bench_cli.commands.volume import VolumeSetupCommand
 
-        VolumeSetupCommand(self.bench.config.volume, self.bench.path).run()
+        VolumeSetupCommand(self.bench.config.volume, self.bench.path, bench_config=self.bench.config).run()
 
     def _install_system_packages(self) -> None:
         from bench_cli.managers.mariadb_manager import MariaDBManager

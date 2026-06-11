@@ -11,6 +11,7 @@ from bench_cli.utils import run_command
 from bench_cli.managers.volume_manager import VolumeManager
 
 if TYPE_CHECKING:
+    from bench_cli.config.bench_config import BenchConfig
     from bench_cli.core.bench import Bench
     from bench_cli.managers.snapshot_orchestrator import SnapshotOrchestrator
 
@@ -26,11 +27,6 @@ def _ask_dataset() -> str | None:
     if choice == "2":
         return "mariadb"
     return None
-
-
-def _require_enabled(config: VolumeConfig) -> None:
-    if not config.enabled:
-        raise BenchError("Volume management is disabled. Set volume.enabled = true in bench.toml.")
 
 
 def _resolve_dataset(config: VolumeConfig, dataset_name: str) -> str:
@@ -71,9 +67,10 @@ def _start_mariadb() -> None:
 
 
 class VolumeSetupCommand:
-    def __init__(self, config: VolumeConfig, bench_path: Path) -> None:
+    def __init__(self, config: VolumeConfig, bench_path: Path, bench_config: "BenchConfig | None" = None) -> None:
         self.config = config
         self.bench_path = bench_path
+        self.bench_config = bench_config
 
     def setup_mariadb(self, manager: VolumeManager):
         data_dir = Path(self.config.mariadb.data_dir)
@@ -98,7 +95,7 @@ class VolumeSetupCommand:
         if not is_linux():
             raise BenchError("Volume management requires Linux (ZFS is not supported on macOS).")
 
-        _require_enabled(self.config)
+        self._resolve_backing()
 
         manager = VolumeManager(self.config)
         print(f"Creating ZFS pool '{self.config.pool}' and datasets...")
@@ -107,15 +104,25 @@ class VolumeSetupCommand:
         self.setup_bench(manager)
         print("Volume setup complete.")
 
+    def _resolve_backing(self) -> None:
+        from bench_cli.managers.volume_manager import resolve_auto_backing
+
+        choice = resolve_auto_backing(self.config)
+        if not choice:
+            return
+        print(f"  {choice}")
+        if self.bench_config is not None:
+            from bench_cli.config.toml_writer import bench_config_to_toml
+
+            (self.bench_path / "bench.toml").write_text(bench_config_to_toml(self.bench_config))
+            print("  Saved resolved volume settings to bench.toml")
+
 
 class VolumeStatusCommand:
     def __init__(self, config: VolumeConfig) -> None:
         self.config = config
 
     def run(self) -> None:
-        if not self.config.enabled:
-            print("Volume management is disabled (volume.enabled = false).")
-            return
         self._print_pool()
         self._print_dataset(self.config.benches_dataset)
         self._print_dataset(self.config.mariadb_dataset)
@@ -146,7 +153,6 @@ class VolumeSnapshotCommand:
         self.dataset_name = dataset_name
 
     def run(self) -> None:
-        _require_enabled(self.config)
         dataset_name = self.dataset_name if self.dataset_name is not None else _ask_dataset()
         orchestrator = _build_orchestrator(self.bench)
         tag = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -161,7 +167,6 @@ class VolumeListSnapshotsCommand:
         self.dataset_name = dataset_name
 
     def run(self) -> None:
-        _require_enabled(self.config)
         manager = VolumeManager(self.config)
         for dataset in _target_datasets(self.config, self.dataset_name):
             snapshots = manager.list_snapshots(dataset)
@@ -182,7 +187,6 @@ class VolumeDestroySnapshotCommand:
         self.dataset_name = dataset_name
 
     def run(self) -> None:
-        _require_enabled(self.config)
         dataset = _resolve_dataset(self.config, self.dataset_name)
         VolumeManager(self.config).destroy_snapshot(dataset, self.tag)
         print(f"Snapshot destroyed: {dataset}@{self.tag}")
@@ -196,7 +200,6 @@ class VolumeRestoreSnapshotCommand:
         self.dataset_name = dataset_name
 
     def run(self) -> None:
-        _require_enabled(self.config)
         dataset = _resolve_dataset(self.config, self.dataset_name)
         print(f"Restoring {dataset} to snapshot {self.tag}...")
         self._warn(dataset)

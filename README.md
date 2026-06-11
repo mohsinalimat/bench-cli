@@ -99,7 +99,6 @@ process_manager = "supervisor"   # none | supervisor | systemd
 nginx = true
 
 [volume]
-enabled = true
 pool = "bench-pool"
 backing = "auto"                 # discover an unused disk, or fall back to a disk image
 # backing = "device"             # explicit: dedicated disk

@@ -1,6 +1,6 @@
 # Volume Management
 
-bench supports optional ZFS-based volume management. When enabled, a single ZFS pool is created and separate datasets are carved out for bench data and MariaDB data — each with configurable quotas and reservations.
+bench manages all storage on ZFS. On Linux every bench gets a ZFS pool — volume setup is a mandatory part of `bench init` (macOS is dev-only and skips it). A single ZFS pool is created and separate datasets are carved out for bench data and MariaDB data — each with configurable quotas and reservations.
 
 The pool can be backed three ways, selected by `volume.backing`:
 
@@ -18,7 +18,6 @@ The minimal hands-off config:
 
 ```toml
 [volume]
-enabled = true
 pool = "bench-pool"
 backing = "auto"
 ```
@@ -45,22 +44,21 @@ Quotas use a strict 60/40 split (no overcommit) so a full benches dataset can ne
 
 ## Design constraints
 
-- **Opt-in only.** ZFS volume management is disabled by default. Set `volume.enabled = true` in `bench.toml` to activate it.
+- **Mandatory on Linux.** Every bench runs on ZFS — there is no off switch. Machines without a spare disk use a disk image on the root filesystem (`backing = "image"` or `"auto"`). macOS (dev only) skips volume setup entirely.
 - **One pool, two datasets.** A single ZFS pool on one backing (disk or image file) holds two datasets: one for bench directories (`<pool>/benches`) and one for MariaDB data (`<pool>/mariadb`). This keeps data locality simple and snapshotting independent per concern.
 - **Quotas and reservations from bench.toml.** Space limits and guarantees are declared in `bench.toml` — no manual `zfs set` commands needed.
 - **Snapshot support.** ZFS datasets can be snapshotted on demand via `bench volume snapshot`. This is a building block for backup workflows; scheduling is left to the operator (cron, etc.).
 - **Linux only.** ZFS volume management targets Ubuntu/Linux servers. `VolumeSetupCommand` exits with a clear error on macOS.
 - **No pool destruction.** bench will never destroy a ZFS pool or rollback a dataset without an explicit user-confirmed command. All destructive operations require `--yes`.
-- **Runs once during `bench init`.** Volume setup is not idempotent by design. It runs as part of `bench init` when `volume.enabled = true` and is not intended to be re-run.
+- **Runs once during `bench init`.** Volume setup is not idempotent by design. It runs as part of `bench init` on Linux and is not intended to be re-run.
 
 ---
 
 ## bench.toml additions
 
 ```toml
-# ── Volume (ZFS, optional) ────────────────────────────────────────────────
+# ── Volume (ZFS, mandatory on Linux) ────────────────────────────────────────────────
 [volume]
-enabled = false            # set to true to enable ZFS volume management
 pool = "bench-pool"        # ZFS pool name (created if it does not exist)
 backing = "device"         # "device" (dedicated disk) | "image" (file on root FS) | "auto" (discover)
 device = "/dev/sdb"        # block device to create the pool on (backing = "device")
@@ -79,14 +77,11 @@ reservation = "5G"         # guaranteed space for MariaDB data files
 quota = "20G"              # hard cap on MariaDB data space
 data_dir = "/var/lib/mysql" # path MariaDB reads/writes its data files
                             # bench remounts the dataset here via zfs set mountpoint
-
-[volume.snapshots]
-enabled = false            # set to true to allow `bench volume snapshot`
 ```
 
 ### Validation
 
-If `volume.enabled = true`:
+On every config load:
 - `volume.pool` must be a non-empty string.
 - `volume.backing` must be `"device"`, `"image"`, or `"auto"`.
 - `backing = "auto"` → no other backing fields required; everything is resolved at `bench init` time.
@@ -132,17 +127,13 @@ class MariaDBDatasetConfig:
     data_dir: str = "/var/lib/mysql"
 
 @dataclass
-class SnapshotConfig:
-    enabled: bool = False
-
-@dataclass
 class VolumeConfig:
-    enabled: bool = False
-    pool: str = ""
+    pool: str = "bench-pool"
+    backing: str = "auto"  # "device" | "image" | "auto"
     device: str = ""
+    image: ImageConfig = field(default_factory=ImageConfig)
     benches: BenchesDatasetConfig = field(default_factory=BenchesDatasetConfig)
     mariadb: MariaDBDatasetConfig = field(default_factory=MariaDBDatasetConfig)
-    snapshots: SnapshotConfig = field(default_factory=SnapshotConfig)
 
     @property
     def benches_dataset(self) -> str:
@@ -231,7 +222,7 @@ class VolumeManager:
     # Snapshots
 
     def snapshot(self, dataset: str, tag: str) -> None:
-        """zfs snapshot <dataset>@<tag> — raises VolumeError if snapshots.enabled is False."""
+        """zfs snapshot <dataset>@<tag>"""
 
     def list_snapshots(self, dataset: str) -> list[SnapshotInfo]:
         """zfs list -t snapshot — returns list of SnapshotInfo sorted oldest-first."""
@@ -262,7 +253,7 @@ class SnapshotInfo:
 
 ## Data migration strategies
 
-When `bench init` runs with `volume.enabled = true`, it must move existing data from the root filesystem into the ZFS datasets before mounting. Two strategies are used depending on who owns the directory:
+When `bench init` runs on Linux, it must move existing data from the root filesystem into the ZFS datasets before mounting. Two strategies are used depending on who owns the directory:
 
 ### MariaDB — rsync + ZFS overlay (`migrate_data`)
 
@@ -293,12 +284,12 @@ The ZFS dataset mounts at `bench_cli_root/benches/` — the exact path `find_ben
 
 ## Integration with `bench init`
 
-When `volume.enabled = true`, `InitCommand` runs `VolumeSetupCommand` as step 3, immediately after installing system packages (which installs and starts MariaDB so its data directory exists) and before `Bench.create_directories()` (so all subsequent directory creation lands on ZFS).
+On Linux, `InitCommand` runs `VolumeSetupCommand` as step 3, immediately after installing system packages (which installs and starts MariaDB so its data directory exists) and before `Bench.create_directories()` (so all subsequent directory creation lands on ZFS).
 
 ```
 1.  Validate bench.toml
 2.  Install system packages          ← MariaDB installed and started here
-3.  [if volume.enabled] Set up ZFS volumes
+3.  [Linux] Set up ZFS volumes
       • manager.setup()              — create pool + datasets
       • setup_mariadb()              — migrate_data + restart MariaDB
       • setup_benches()              — migrate_dir
@@ -337,7 +328,7 @@ bench volume snapshot --dataset benches  # snapshot bench data only
 bench volume snapshot --dataset mariadb  # snapshot MariaDB data only
 ```
 
-Snapshot tags are generated as `YYYYMMDD-HHMMSS`. Pre-condition: `volume.snapshots.enabled = true` in `bench.toml`.
+Snapshot tags are generated as `YYYYMMDD-HHMMSS`. Snapshots are always available — no configuration needed.
 
 ### `bench volume list-snapshots`
 
@@ -409,7 +400,6 @@ Common errors:
 | Pool does not exist | Raised by `zpool list` inside `pool_exists()` |
 | Dataset does not exist | Raised by `zfs list` inside `dataset_exists()` |
 | Quota less than reservation | Caught at validation time before any ZFS commands run |
-| `snapshots.enabled = false` | "Snapshots are disabled. Set volume.snapshots.enabled = true in bench.toml to enable." |
 | Snapshot does not exist | "Snapshot '<dataset>@<tag>' does not exist." |
 
 ---

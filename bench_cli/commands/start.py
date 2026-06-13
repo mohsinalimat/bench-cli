@@ -41,7 +41,11 @@ class RunCommand:
             "--bench-root", str(self.bench.path),
             "--port", str(port),
             "--timeout", "7200",
+            "--wizard",
         ], env=env)
+
+        if (self.bench.path / "env" / "bin" / "python").exists():
+            print("\nSetup complete. Run 'bench start' to start your bench.\n", flush=True)
 
     def _admin_port(self) -> int:
         try:

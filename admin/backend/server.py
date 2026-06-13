@@ -18,6 +18,7 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=900, help="Inactivity timeout in seconds")
     parser.add_argument("--no-timeout", action="store_true", help="Disable inactivity watchdog (used when managed by procfile)")
     parser.add_argument("--dev", action="store_true", help="Enable auto-reload on code changes (development only)")
+    parser.add_argument("--wizard", action="store_true", help="Running as the standalone setup-wizard server")
     args = parser.parse_args()
 
     from admin.backend.app import create_app
@@ -25,6 +26,7 @@ def main() -> None:
 
     bench_root = Path(args.bench_root)
     app = create_app(bench_root)
+    app.config["WIZARD_SERVER"] = args.wizard
 
     skip_watchdog = args.no_timeout or args.dev
     if not skip_watchdog:

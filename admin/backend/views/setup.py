@@ -87,6 +87,35 @@ def start_init():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+@setup_bp.route("/finish", methods=["POST"])
+def finish_setup():
+    """Shut down the standalone wizard server so the user can run `bench start`.
+
+    Only the wizard server (started with --wizard) may be shut down this way —
+    the procfile-managed admin process must never exit, since the dev-mode
+    runner stops the whole bench when any one process dies.
+    """
+    import os
+    import signal
+    import threading
+
+    if not current_app.config.get("WIZARD_SERVER"):
+        return jsonify({"ok": False, "error": "Not running as the setup-wizard server"}), 400
+
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    if not (bench_root / "config" / "Procfile").exists():
+        return jsonify({"ok": False, "error": "Bench is not initialized yet"}), 400
+
+    # call_on_close fires after the response body has been written to the
+    # socket, so the kill can't race ahead of the response. The tiny timer
+    # just lets the handler thread finish tearing down the connection.
+    response = jsonify({"ok": True})
+    response.call_on_close(
+        lambda: threading.Timer(0.1, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
+    )
+    return response
+
+
 @setup_bp.route("/new-site", methods=["POST"])
 def start_new_site():
     bench_root = Path(current_app.config["BENCH_ROOT"])

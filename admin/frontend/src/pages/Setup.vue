@@ -39,8 +39,6 @@ const form = ref({
   production_process_manager: 'none',
 })
 
-const siteForm = ref({ name: 'site1.localhost', admin_password: 'admin' })
-
 // ── volume smart defaults ─────────────────────────────────────────────────
 const CUSTOM_DEVICE = '__custom__'
 const availableDevices = ref([])
@@ -98,7 +96,7 @@ const configSteps = computed(() =>
 )
 const stepNumber = computed(() => configSteps.value.indexOf(step.value) + 1)
 const isConfiguring = computed(() => stepNumber.value > 0)
-const isTerminal = computed(() => step.value === 'running' || step.value === 'site-running')
+const isTerminal = computed(() => step.value === 'running')
 const modalWidthClass = computed(() => {
   if (isTerminal.value) return 'max-w-2xl'
   return 'max-w-lg'
@@ -109,8 +107,7 @@ const titles = {
   customize: 'Customize your bench',
   volume: 'ZFS volume management',
   running: 'Initializing bench…',
-  'create-site': 'Create your first site',
-  'site-running': 'Creating site…',
+  done: 'Setup complete',
 }
 const subtitles = {
   volume: 'Choose where the ZFS pool lives — a spare disk or a disk image on the root filesystem',
@@ -192,14 +189,6 @@ async function startInitTask() {
   return data.task_id
 }
 
-async function startSiteTask() {
-  const data = await postJson('/api/setup/new-site', {
-    name: siteForm.value.name,
-    admin_password: siteForm.value.admin_password,
-  })
-  if (!data.ok) throw new Error(data.error || 'Failed to create site.')
-  return data.task_id
-}
 
 function parseSize(value) {
   // Positive integer with a required K/M/G/T/P suffix — no bare numbers, no decimals, no negatives.
@@ -262,38 +251,39 @@ function onInitDone(success) {
     error.value = 'Initialization failed. Check the output above and try again.'
     return
   }
-  step.value = 'create-site'
+  step.value = 'done'
+  shutdownAndPoll()
 }
 
-async function createSite() {
-  if (!siteForm.value.name) {
-    error.value = 'Site name is required.'
-    return
-  }
-  error.value = ''
-  loading.value = true
+async function shutdownAndPoll() {
   try {
-    const taskId = await startSiteTask()
-    step.value = 'site-running'
-    streamTask(`/api/setup/stream/${taskId}`, onSiteDone)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
+    // Asks the standalone wizard server to shut itself down. May legitimately
+    // fail (e.g. dev server) — the on-screen instruction covers that case too.
+    await postJson('/api/setup/finish', {})
+  } catch {}
+  pollUntilBenchIsBack()
 }
 
-function onSiteDone(success) {
-  if (!success) {
-    error.value = 'Site creation failed. Check the output above.'
-    return
+async function pollUntilBenchIsBack() {
+  // The wizard server is gone; once `bench start` brings the bench (and its
+  // admin process) back, reload into the normal login flow.
+  while (true) {
+    await new Promise((r) => setTimeout(r, 3000))
+    try {
+      const res = await fetch('/api/status')
+      if (!res.ok) continue
+      const data = await res.json()
+      if (data.wizard !== true) {
+        emit('done')
+        return
+      }
+    } catch {}
   }
-  emit('done')
 }
 
 function backToConfig() {
   error.value = ''
-  step.value = step.value === 'site-running' ? 'create-site' : configSteps.value[configSteps.value.length - 1]
+  step.value = configSteps.value[configSteps.value.length - 1]
 }
 </script>
 
@@ -420,18 +410,20 @@ function backToConfig() {
           <ErrorMessage v-if="error" :message="error" />
         </div>
 
-        <div v-else-if="step === 'create-site'" class="flex flex-col gap-4">
-          <FormControl label="Site name" v-model="siteForm.name" placeholder="site1.localhost" />
-          <div class="space-y-1.5">
-            <FormLabel label="Site admin password" />
-            <Password v-model="siteForm.admin_password" placeholder="admin" @keydown.enter="createSite" />
-          </div>
-          <ErrorMessage v-if="error" :message="error" />
+        <div v-else-if="step === 'done'" class="flex flex-col items-center gap-3 py-6 text-center">
+          <p class="text-sm text-ink-gray-7">
+            Your bench is ready. The setup server is shutting down now.
+          </p>
+          <p class="text-sm text-ink-gray-5">
+            Run
+            <code class="rounded bg-surface-gray-2 px-1 font-mono">bench start</code>
+            in your terminal to start your bench — this page will reload automatically once it's back.
+          </p>
         </div>
       </div>
 
       <!-- Footer -->
-      <div v-if="!isTerminal || error" class="flex gap-2 border-t border-outline-gray-2 px-5 py-4">
+      <div v-if="(!isTerminal && step !== 'done') || error" class="flex gap-2 border-t border-outline-gray-2 px-5 py-4">
         <Button v-if="stepNumber > 1 && isConfiguring" variant="subtle" class="flex-1" @click="prevStep">
           Back
         </Button>
@@ -447,14 +439,6 @@ function backToConfig() {
         <Button v-else-if="isConfiguring" variant="solid" :loading="loading" class="flex-1" @click="initialize">
           Initialize
         </Button>
-        <template v-else-if="step === 'create-site'">
-          <Button variant="subtle" class="flex-1" @click="$emit('done')">
-            Skip
-          </Button>
-          <Button variant="solid" :loading="loading" class="flex-1" @click="createSite">
-            Create Site
-          </Button>
-        </template>
       </div>
     </div>
   </div>

@@ -21,6 +21,15 @@ if ! command -v uv &>/dev/null; then
     export PATH="$HOME/.local/bin:$PATH"
 fi
 
+# Install Node.js (needed by bench start (wizard mode) to install JS deps and build assets).
+# Idempotent: skip if node is already present. nodesource needs a root shell,
+# which only works here (TTY + sudo) — not in the no-TTY wizard init context.
+if ! command -v node &>/dev/null && command -v apt-get &>/dev/null; then
+    echo "Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+fi
+
 # Add to PATH in the appropriate shell rc file
 add_to_path() {
     local rc="$1"
